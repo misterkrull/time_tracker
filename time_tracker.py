@@ -1,26 +1,30 @@
-import tkinter as tk
-from tkinter import ttk
+from datetime import datetime
 import keyboard
-import time
-import threading
 import sys
+import threading
+import time
+import tkinter as tk
+from tkinter import messagebox, ttk
 
 from db_manager import DB
 
 FILENAME_CURRENT = "app_state.txt"
-IS_IN_SESSION_DICT = {True: "in_session", False: "not_in_session"}
-BUTTON_SESSIONS_DICT = {True: "Завершить сессию", False: "Новая сессия"}
+
 BUTTON_PARAM_STATE_DICT = {True: "normal", False: "disabled"}
+BUTTON_SESSIONS_DICT = {True: "Завершить сессию", False: "Новая сессия"}
+IS_IN_SESSION_DICT = {True: "in_session", False: "not_in_session"}
 START_TEXT_LABEL_DICT = {True: "Началась: ", False: "Длилась: "}
+
 
 def time_decorator(func):
     def wrapper(*args, **kwargs):
-        start_time = time.time()  # Запоминаем время начала
-        result = func(*args, **kwargs)  # Вызываем оригинальную функцию
-        end_time = time.time()  # Запоминаем время окончания
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
         print(f"Функция '{func.__name__}' выполнена за {end_time - start_time:.6f} секунд.")
-        return result  # Возвращаем результат выполнения функции
+        return result
     return wrapper
+
 
 class TrackerApp:
     def __init__(self, root):
@@ -75,7 +79,7 @@ class TrackerApp:
         self.running_1 = False
         self.running_2 = False
 
-        #  - - - - ВСЁ ДАЛЬШЕ -- ИНТЕРФЕЙС! - - - -    (кроме горячих клавиш, они в самом конце)
+        #  - - - - ВСЁ ДАЛЬШЕ в __init__ -- ИНТЕРФЕЙС! - - - -    (кроме горячих клавиш, они в самом конце)
 
         self.root = root
         self.root.title("Мой трекер")
@@ -119,10 +123,20 @@ class TrackerApp:
             self.top_frame,
             font=("Helvetica", 12),
             text=BUTTON_SESSIONS_DICT[self.is_in_session],
-            command=self.startterminate_session,
+            command=self.startterminate_session
         )
         self.startterminate_session_button.pack(side=tk.LEFT, padx=2)  # Отступ между кнопкой и метками
-
+        
+        # Кнопка "Задним числом"
+        self.retroactively_termination_button = tk.Button(
+            self.top_frame,
+            font=("Helvetica", 8),
+            text="Задним\nчислом",
+            state=BUTTON_PARAM_STATE_DICT[self.is_in_session],
+            command=self.retroactively_termination
+        )
+        self.retroactively_termination_button.pack(side=tk.LEFT, padx=4, ipady=0)
+        
         # --- ДВЕ ПОЛОВИНЫ ---
         # Создаем фрейм для разделения на две половины
         self.frame = tk.Frame(root)
@@ -264,13 +278,15 @@ class TrackerApp:
         self.save_current_to_file()
         
 
-    def terminate_session(self):
+    def terminate_session(self, retroactively=False):
         print("Завершаем сессию")
         if self.running:
             self.stop_timers()
-        self.end_current_session_sec = time.time()
-        self.end_current_session = time.strftime("%Y-%m-%d %H:%M:%S",
-                                                 time.localtime(self.end_current_session_sec))
+        if not retroactively:
+            self.end_current_session_sec = time.time()
+            self.end_current_session = \
+                time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.end_current_session_sec))
+        
         self.duration_current_session_sec = self.end_current_session_sec - self.start_current_session_sec
         self.duration_current_session = time.strftime("%H:%M:%S",
                                                       time.gmtime(self.duration_current_session_sec))
@@ -299,21 +315,124 @@ class TrackerApp:
         )
         self.save_current_to_file()
 
-    def startterminate_session(self):
+    def startterminate_session(self, retroactively=False):
         if self.is_in_session:
-            self.terminate_session()
+            self.terminate_session(retroactively)
             self.is_in_session = False
             self.start_sess_datetime_label.config(text=self.duration_current_session)
         else:
             self.start_session()
             self.is_in_session = True
             self.start_sess_datetime_label.config(text=self.start_current_session)
+        self.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
         self.start1_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
         self.start2_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
         self.stop_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
         self.startterminate_session_button.config(text=BUTTON_SESSIONS_DICT[self.is_in_session])
         self.start_text_label.config(text=START_TEXT_LABEL_DICT[self.is_in_session])
         self.save_current_to_file()
+        
+    def retroactively_termination(self):
+        # создаём диалоговое окно
+        retroactively_termination_dialog = tk.Toplevel(self.root)
+        
+        # указываем, что наше диалоговое окно -- временное по отношению к родительскому окну
+        # в т.ч. это убирает кнопки Свернуть/Развернуть, оставляя только крестик в углу
+        retroactively_termination_dialog.transient(self.root)
+        
+        retroactively_termination_dialog.grab_set()   # блокируем кнопки родительского окна
+        
+        # Получаем размеры основного окна - нужно для центрирования нашего окна
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - 450 // 2
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - 120 // 2
+        
+        retroactively_termination_dialog.geometry(f"450x120+{x}+{y}")   # указываем размеры и центрируем
+        retroactively_termination_dialog.title("Завершить сессию задним числом")
+        
+        # добавляем надпись
+        label = tk.Label(
+            retroactively_termination_dialog,
+            text='Введите "задние" дату и время (в формате YYYY-MM-DD HH:MM:SS):',
+            font=("Segoe UI", 10)
+        )
+        label.pack(pady=10)       
+                        
+        # добавляем поле для ввода
+        entry = tk.Entry(
+            retroactively_termination_dialog,
+            width=25,
+            font=("Segoe UI", 12),
+            justify='center'
+        )
+        entry.pack(pady=0)
+        entry.focus_set()
+        
+        if self.amount_of_subsessions == 0:
+            entry.insert(tk.END, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
+        else:
+            entry.insert(tk.END, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.end_subs_datetime)))
+        
+        # фрейм для кнопок
+        button_frame = tk.Frame(retroactively_termination_dialog)
+        button_frame.pack(pady=10)
+        
+        def on_ok():
+            entered_datetime = entry.get()
+            try:
+                self.end_current_session = \
+                    datetime.strptime(entered_datetime.strip(), '%Y-%m-%d %H:%M:%S')
+            except:
+                messagebox.showerror("Ошибка", "Вы ввели некорректные дату и время")
+            else:
+                self.end_current_session_sec = self.end_current_session.timestamp()
+                if (self.end_current_session_sec <= self.start_current_session_sec):
+                    messagebox.showerror(
+                        "Ошибка",
+                        "Завершение сессии должно быть по времени быть после её начала, а не наоборот!"
+                    )
+                    return
+                if (self.end_current_session_sec >= time.time()):
+                    messagebox.showerror(
+                        "Ошибка",
+                        "Завершение сессии должно быть задним числом, т.е. в прошлом, а не в будущем!"
+                    )
+                    return                    
+                retroactively_termination_dialog.destroy()
+                self.startterminate_session(retroactively=True)                
+            
+        def on_cancel(event=None):
+            retroactively_termination_dialog.destroy()
+        
+        def on_enter(event=None):
+            if event.widget == entry:  # Если фокус на текстовом поле
+                ok_button.config(relief=tk.SUNKEN)  # Меняем стиль кнопки на нажатую
+                ok_button.after(100, lambda: ok_button.config(relief=tk.RAISED))  # Возвращаем стиль через 100 мс
+                on_ok()
+            else:
+                event.widget.config(relief=tk.SUNKEN)  # Меняем стиль кнопки на нажатую
+                event.widget.after(100, lambda: event.widget.config(relief=tk.RAISED))  # Возвращаем стиль через 100 мс
+                event.widget.invoke()  # Вызываем действие кнопки, на которой фокус
+        
+        ok_button = tk.Button(
+            button_frame, 
+            text="ОК",
+            command=on_ok,
+            width=12,
+            font=("Segoe UI", 10)
+        )        
+        ok_button.pack(side=tk.LEFT, padx=10, pady=0)
+
+        cancel_button = tk.Button(
+            button_frame,
+            text="Отмена",
+            command=on_cancel,
+            width=12,
+            font=("Segoe UI", 10)
+        )
+        cancel_button.pack(side=tk.LEFT, padx=2, pady=0)
+        
+        retroactively_termination_dialog.bind('<Return>', on_enter)
+        retroactively_termination_dialog.bind('<Escape>', on_cancel)
         
     def update_time(self):
         """
