@@ -351,20 +351,28 @@ class TrackerApp:
         
         retroactively_termination_dialog.grab_set()   # блокируем кнопки родительского окна
         
-        # Получаем размеры основного окна - нужно для центрирования нашего окна
-        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - 450 // 2
-        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - 120 // 2
+        # задаём размеры окна
+        width = 450
+        height = 140
         
-        retroactively_termination_dialog.geometry(f"450x120+{x}+{y}")   # указываем размеры и центрируем
+        # Получаем размеры основного окна - нужно для центрирования нашего окна
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - width // 2
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - height // 2
+        
+        retroactively_termination_dialog.geometry(f"{width}x{height}+{x}+{y}")   # указываем размеры и центрируем
         retroactively_termination_dialog.title("Завершить сессию задним числом")
+        
+        min_datetime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.end_subs_datetime_sec))
         
         # добавляем надпись
         label = tk.Label(
             retroactively_termination_dialog,
-            text='Введите "задние" дату и время (в формате YYYY-MM-DD HH:MM:SS):',
+            text='Введите "задние" дату и время (в формате YYYY-MM-DD HH:MM:SS)\n'
+                 'в промежутке между окончанием последней подсессии\n'
+                f'({min_datetime}) и текущим временем:',
             font=("Segoe UI", 10)
         )
-        label.pack(pady=10)       
+        label.pack(pady=2)       
                         
         # добавляем поле для ввода
         entry = tk.Entry(
@@ -373,17 +381,13 @@ class TrackerApp:
             font=("Segoe UI", 12),
             justify='center'
         )
-        entry.pack(pady=0)
+        entry.pack(pady=3)
         entry.focus_set()
-        
-        if self.amount_of_subsessions == 0:
-            entry.insert(tk.END, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
-        else:
-            entry.insert(tk.END, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.end_subs_datetime_sec)))
+        entry.insert(tk.END, min_datetime)
         
         # фрейм для кнопок
         button_frame = tk.Frame(retroactively_termination_dialog)
-        button_frame.pack(pady=10)
+        button_frame.pack(pady=7)
         
         def on_ok():
             entered_datetime = entry.get()
@@ -394,13 +398,16 @@ class TrackerApp:
                 messagebox.showerror("Ошибка", "Вы ввели некорректные дату и время")
             else:
                 self.end_current_session_sec = self.end_current_session.timestamp()
-                if (self.end_current_session_sec <= self.start_current_session_sec):
+                if self.end_current_session_sec < int(self.end_subs_datetime_sec):
+                  # int() сделали потому, что по факту целое число, а справа есть ещё дробная часть, 
+                  # которая в итоге не отображается - а нам в итоге только целая часть и нужна
+                  # в противном случае поведение программы становится немного некорректным
                     messagebox.showerror(
                         "Ошибка",
-                        "Завершение сессии должно быть по времени быть после её начала, а не наоборот!"
+                        "Завершение сессии должно быть позже окончания последней подсессии!"
                     )
                     return
-                if (self.end_current_session_sec >= time.time()):
+                if self.end_current_session_sec >= time.time():
                     messagebox.showerror(
                         "Ошибка",
                         "Завершение сессии должно быть задним числом, т.е. в прошлом, а не в будущем!"
