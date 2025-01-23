@@ -111,3 +111,10 @@ class DB:
         rows_in_tuples = self.cur.fetchall()
         rows_in_dicts = [{'activity': a, 'subs_duration': s_d} for (a, s_d) in rows_in_tuples]
         return rows_in_dicts
+        
+    def get_datetime_of_last_subsession(self):
+        self.cur.execute("SELECT end_subs_datetime FROM subsessions ORDER BY id DESC LIMIT 1")
+        return str(self.cur.fetchall()[0][0])
+        # мы тут не проверяем нашу таблицу на пустоту. 
+        # вообще такого возникнуть не должно: при пустой таблице параметр self.amount_of_subsessions будет равен 0
+        # а эта функция вызывается только если этот параметр больше 0
