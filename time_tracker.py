@@ -218,9 +218,9 @@ class TrackerApp:
         self.stop_button.pack(pady=10)
         
         # ГОРЯЧИЕ КЛАВИШИ -  имитируем нажатие нарисованных кнопок
-        keyboard.add_hotkey('Win+F9', self.start1_button.invoke)
-        keyboard.add_hotkey('Win+F11', self.stop_button.invoke)
-        keyboard.add_hotkey('Win+F12', self.start2_button.invoke)
+        keyboard.add_hotkey('Alt+F10', self.start1_button.invoke)
+        keyboard.add_hotkey('Alt+F11', self.stop_button.invoke)
+        keyboard.add_hotkey('Alt+F12', self.start2_button.invoke)
 
 
     def save_current_to_file(self):
