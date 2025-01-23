@@ -74,7 +74,13 @@ class TrackerApp:
         
         self.amount_of_subsessions = self.db.get_amount_of_subsessions(self.session_number)
         print("Количество подсессий:", self.amount_of_subsessions)
-
+        
+        if self.amount_of_subsessions > 0:
+            self.end_subs_datetime_sec = datetime.strptime(
+                self.db.get_datetime_of_last_subsession(),
+                '%Y-%m-%d %H:%M:%S'
+            ).timestamp()
+            
         self.running = False
         self.running_1 = False
         self.running_2 = False
@@ -136,6 +142,9 @@ class TrackerApp:
             command=self.retroactively_termination
         )
         self.retroactively_termination_button.pack(side=tk.LEFT, padx=4, ipady=0)
+        self.retroactively_termination_button.config(
+            state=BUTTON_PARAM_STATE_DICT[bool(self.amount_of_subsessions) and self.is_in_session]
+        )
         
         # --- ДВЕ ПОЛОВИНЫ ---
         # Создаем фрейм для разделения на две половины
@@ -324,7 +333,7 @@ class TrackerApp:
             self.start_session()
             self.is_in_session = True
             self.start_sess_datetime_label.config(text=self.start_current_session)
-        self.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
+        self.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[False])
         self.start1_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
         self.start2_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
         self.stop_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
@@ -370,7 +379,7 @@ class TrackerApp:
         if self.amount_of_subsessions == 0:
             entry.insert(tk.END, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
         else:
-            entry.insert(tk.END, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.end_subs_datetime)))
+            entry.insert(tk.END, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.end_subs_datetime_sec)))
         
         # фрейм для кнопок
         button_frame = tk.Frame(retroactively_termination_dialog)
@@ -484,23 +493,24 @@ class TrackerApp:
         self.running_1 = True
         self.running_2 = False
         self.working_timer = 1
+        self.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[False])
         if not self.running:
             self.running = True
             self.on_select_combo_2(0)
             threading.Thread(target=self.update_time_starting, daemon=True).start()
         else:
-            self.end_subs_datetime = time.time()
-            self.subs_duration = self.end_subs_datetime - self.start_subs_datetime
+            self.end_subs_datetime_sec = time.time()
+            self.subs_duration = self.end_subs_datetime_sec - self.start_subs_datetime_sec
             self.db.add_new_subsession(
                 self.session_number,
                 self.current_activity,
-                time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.start_subs_datetime)),
-                time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.end_subs_datetime)),
+                time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.start_subs_datetime_sec)),
+                time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.end_subs_datetime_sec)),
                 time.strftime("%H:%M:%S", time.gmtime(self.subs_duration))
             )
             self.amount_of_subsessions += 1
         self.save_current_to_file()
-        self.start_subs_datetime = time.time()
+        self.start_subs_datetime_sec = time.time()
         self.current_activity = self.activity_1
         self.combobox_1.config(state='disabled')
         self.combobox_2.config(state='readonly')
@@ -518,23 +528,24 @@ class TrackerApp:
         self.running_1 = False
         self.running_2 = True
         self.working_timer = 2
+        self.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[False])
         if not self.running:
             self.running = True
             self.on_select_combo_1(0)
             threading.Thread(target=self.update_time_starting, daemon=True).start()
         else:
-            self.end_subs_datetime = time.time()
-            self.subs_duration = self.end_subs_datetime - self.start_subs_datetime
+            self.end_subs_datetime_sec = time.time()
+            self.subs_duration = self.end_subs_datetime_sec - self.start_subs_datetime_sec
             self.db.add_new_subsession(
                 self.session_number,
                 self.current_activity,
-                time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.start_subs_datetime)),
-                time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.end_subs_datetime)),
+                time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.start_subs_datetime_sec)),
+                time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.end_subs_datetime_sec)),
                 time.strftime("%H:%M:%S", time.gmtime(self.subs_duration))
             )
             self.amount_of_subsessions += 1
         self.save_current_to_file()
-        self.start_subs_datetime = time.time()
+        self.start_subs_datetime_sec = time.time()
         self.current_activity = self.activity_2
         self.combobox_1.config(state='readonly')
         self.combobox_2.config(state='disabled')
@@ -552,6 +563,8 @@ class TrackerApp:
         self.running = False
         self.running_1 = False
         self.running_2 = False
+        
+        self.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[True])
         self.combobox_1.config(state='readonly')
         self.combobox_2.config(state='readonly')
         self.start1_button.config(state='normal')
@@ -560,13 +573,13 @@ class TrackerApp:
         self.time_2_label.config(bg=self.DEFAULT_WIN_COLOR)
         self.save_current_to_file()
 
-        self.end_subs_datetime = time.time()
-        self.subs_duration = self.end_subs_datetime - self.start_subs_datetime
+        self.end_subs_datetime_sec = time.time()
+        self.subs_duration = self.end_subs_datetime_sec - self.start_subs_datetime_sec
         self.db.add_new_subsession(
             self.session_number,
             self.current_activity,
-            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.start_subs_datetime)),
-            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.end_subs_datetime)),
+            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.start_subs_datetime_sec)),
+            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.end_subs_datetime_sec)),
             time.strftime("%H:%M:%S", time.gmtime(self.subs_duration))
         )
         self.amount_of_subsessions += 1
