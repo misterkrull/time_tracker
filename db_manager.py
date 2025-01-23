@@ -74,7 +74,7 @@ class DB:
         sess_duration_total_acts_all,
         sess_duration_total_act
     ) -> None:
-        #TODO сделать проверку соответствия текущего индекса очереденому primary key
+        #TODO сделать проверку соответствия текущего индекса очереденому primary key: видал, что они расходились
         self.cur.execute(
             "INSERT INTO sessions VALUES (NULL, ?, ?, ?, ?, ?" + ", ?" * len(sess_duration_total_act) + ")",
             (start_sess_datetime, end_sess_datetime, sess_duration_total, 
@@ -88,7 +88,8 @@ class DB:
             "INSERT INTO subsessions VALUES (NULL, ?, ?, ?, ?, ?)",
             (session_number, activity, start_subs_datetime, end_subs_datetime, subs_duration)
         )
-        print("Добавили строку: ")
+        print("В таблицу susbsessions добавили строку: ")
+        #TODO сделать проверку соответствия session_number очереденому primary key: видал, что они расходились
         print(session_number, activity, start_subs_datetime, end_subs_datetime, subs_duration)
         self.conn.commit()
         
