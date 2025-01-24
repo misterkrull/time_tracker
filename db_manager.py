@@ -100,11 +100,11 @@ class DB:
         rows = self.cur.fetchall()
         return len(rows)
         
-    def get_activities(self) -> list[Any]:
+    def get_activities(self) -> dict[int, str]:
         self.cur.execute("SELECT id, title FROM activities")
         return {el[0]:el[1] for el in self.cur.fetchall()}
 
-    def get_subsessions_by_session(self, session_number: int) -> list[Any]:
+    def get_subsessions_by_session(self, session_number: int) -> list[dict[str, Any]]:
         self.cur.execute(
             "SELECT activity, subs_duration FROM subsessions WHERE session_number=?",
             (session_number,)

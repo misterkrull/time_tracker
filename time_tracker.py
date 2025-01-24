@@ -33,11 +33,11 @@ class TrackerApp:
             with open(FILENAME_CURRENT, 'r') as file_current:
                 self.is_in_session = (file_current.readline().strip() == IS_IN_SESSION_DICT[True])
                 self.session_number = int(file_current.readline().strip())
-                self.number_of_activities = int(file_current.readline().strip())
-                if self.number_of_activities != len(self.db.get_activities()):
+                self.amount_of_activities = int(file_current.readline().strip())
+                if self.amount_of_activities != len(self.db.get_activities()):
                     print("Количества активностей в БД и в файле не совпадают!")
                     return
-                self.timer_activity = {key: 0 for key in range(1, self.number_of_activities + 1)}
+                self.timer_activity = {key: 0 for key in range(1, self.amount_of_activities + 1)}
                 for key in self.timer_activity:
                     self.timer_activity[key] = int(file_current.readline().strip())
                 self.activity_1 = int(file_current.readline().strip())
@@ -57,8 +57,8 @@ class TrackerApp:
             print("Не удалось прочитать из файла, ставим в 0")
             self.is_in_session = False
             self.session_number = 0
-            self.number_of_activities = len(self.db.get_activities())
-            self.timer_activity = {key:0 for key in range(1, self.number_of_activities + 1)}
+            self.amount_of_activities = len(self.db.get_activities())
+            self.timer_activity = {key:0 for key in range(1, self.amount_of_activities + 1)}
             for key in self.timer_activity:
                 self.timer_activity[key] = 0
             self.activity_1 = 1
@@ -111,7 +111,8 @@ class TrackerApp:
         self.current_session_value_label.pack(side=tk.LEFT, padx=10)  # Отступ между метками
 
         # Метка для текста "Началась:"/"Длилась:"
-        self.start_text_label = tk.Label(self.top_frame,
+        self.start_text_label = tk.Label(
+            self.top_frame,
             text=START_TEXT_LABEL_DICT[self.is_in_session],
             font=("Helvetica", 14)
         )
@@ -165,7 +166,7 @@ class TrackerApp:
         self.time_1_label.pack()
 
         # Комбобокс 1
-        self.combobox_1_value = tk.StringVar()
+        self.combobox_1_value = tk.StringVar()  # нужен для работа с выбранным значением комбобокса
         self.combobox_1 = ttk.Combobox(
             self.left_frame,
             textvariable=self.combobox_1_value,
@@ -201,7 +202,7 @@ class TrackerApp:
         self.time_2_label.pack()
 
         # Комбобокс 2
-        self.combobox_2_value = tk.StringVar()
+        self.combobox_2_value = tk.StringVar()  # нужен для работа с выбранным значением комбобокса
         self.combobox_2 = ttk.Combobox(
             self.right_frame,
             textvariable=self.combobox_2_value,
@@ -246,7 +247,7 @@ class TrackerApp:
         with open(FILENAME_CURRENT, 'w') as file_current:
             text = IS_IN_SESSION_DICT[self.is_in_session] + '\n' + \
                    str(self.session_number) + '\n' + \
-                   str(self.number_of_activities) + '\n'
+                   str(self.amount_of_activities) + '\n'
             for key in self.timer_activity:
                 text += str(self.timer_activity[key]) + '\n' 
             text += str(self.activity_1) + '\n' + str(self.activity_2) + '\n'
@@ -260,7 +261,7 @@ class TrackerApp:
         self.stop_timers()
         self.root.destroy()
 
-    def on_select_combo_1(self, event):
+    def on_select_combo_1(self, event=None):
         self.activity_1 = self.combobox_1.current() + 1
         self.time_1_label.config(
             text=time.strftime("%H:%M:%S", time.gmtime(self.timer_activity[self.activity_1]))
@@ -274,7 +275,7 @@ class TrackerApp:
                 self.running_1 = False
                 self.start1_button.config(state='normal')
 
-    def on_select_combo_2(self, event):
+    def on_select_combo_2(self, event=None):
         self.activity_2 = self.combobox_2.current() + 1
         self.time_2_label.config(
             text=time.strftime("%H:%M:%S", time.gmtime(self.timer_activity[self.activity_2]))
@@ -319,8 +320,8 @@ class TrackerApp:
             time.strftime("%H:%M:%S", time.gmtime(self.duration_current_session_sec))
         
         self.all_subsessions_by_session = self.db.get_subsessions_by_session(self.session_number)
-        self.duration_total_act = {key: 0 for key in range(1, self.number_of_activities + 1)}
-        self.duration_total_act_sec = {key: 0 for key in range(1, self.number_of_activities + 1)}
+        self.duration_total_act = {key: 0 for key in range(1, self.amount_of_activities + 1)}
+        self.duration_total_act_sec = {key: 0 for key in range(1, self.amount_of_activities + 1)}
         for subsession in self.all_subsessions_by_session:
             hours, minutes, seconds = map(int, subsession['subs_duration'].split(':'))
             self.duration_total_act_sec[subsession['activity']] += 3600 * hours + 60 * minutes + seconds
@@ -519,6 +520,9 @@ class TrackerApp:
         # Даже не стал убирать нулевой self.timer_until_the_next_stop
 
     def start_timer_1(self):
+        """
+Запускается при нажатии на кнопку "Старт 1"
+        """
         if self.running and self.running_1:
             return
         self.running_1 = True
@@ -527,7 +531,7 @@ class TrackerApp:
         self.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[False])
         if not self.running:
             self.running = True
-            self.on_select_combo_2(0)
+            self.on_select_combo_2()
             threading.Thread(target=self.update_time_starting, daemon=True).start()
         else:
             self.end_subs_datetime_sec = time.time()
@@ -549,6 +553,9 @@ class TrackerApp:
         self.time_2_label.config(bg=self.DEFAULT_WIN_COLOR)
 
     def start_timer_2(self):
+        """
+Запускается при нажатии на кнопку "Старт 2"
+        """
         if self.running and self.running_2:
             return
         self.running_1 = False
@@ -557,7 +564,7 @@ class TrackerApp:
         self.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[False])
         if not self.running:
             self.running = True
-            self.on_select_combo_1(0)
+            self.on_select_combo_1()
             threading.Thread(target=self.update_time_starting, daemon=True).start()
         else:
             self.end_subs_datetime_sec = time.time()
@@ -579,6 +586,9 @@ class TrackerApp:
         self.time_2_label.config(bg='green')
 
     def stop_timers(self):
+        """
+Запускается при нажатии на кнопку "Стоп"
+        """
         if not self.running:
             return
         self.running = False
