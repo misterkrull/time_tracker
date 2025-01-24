@@ -26,8 +26,170 @@ def time_decorator(func):
     return wrapper
 
 
-class TrackerApp:
+class GuiLayer:
     def __init__(self, root):
+        self.root = root
+        self.root.title("Мой трекер")
+        self.root.geometry("678x250")  # Устанавливаем размер окна
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)  # определяем метод закрытия окна
+        self.DEFAULT_WIN_COLOR = self.root.cget("background")
+        
+        # --- ПЕРВАЯ СТРОКА ---
+        # Создаем фрейм для первой строки
+        self.top_frame = tk.Frame(root)
+        self.top_frame.pack(pady=5)
+
+        # Создаем метку для текста "Сессия:"
+        self.session_text_label = tk.Label(self.top_frame, text="Сессия:", font=("Helvetica", 14))
+        self.session_text_label.pack(side=tk.LEFT)
+
+        # Создаем метку для отображения номера текущей сессии
+        self.current_session_value_label = tk.Label(
+            self.top_frame,
+            text=app.session_number,
+            font=("Helvetica", 18)
+        )
+        self.current_session_value_label.pack(side=tk.LEFT, padx=10)  # Отступ между метками
+
+        # Метка для текста "Началась:"/"Длилась:"
+        self.start_text_label = tk.Label(
+            self.top_frame,
+            text=START_TEXT_LABEL_DICT[app.is_in_session],
+            font=("Helvetica", 14)
+        )
+        self.start_text_label.pack(side=tk.LEFT, padx=2)
+
+        # Метка для времени начала сессии
+        self.start_sess_datetime_label = tk.Label(
+            self.top_frame,
+            text=app.start_current_session if app.is_in_session else app.duration_current_session,
+            font=("Helvetica", 14)
+        )
+        self.start_sess_datetime_label.pack(side=tk.LEFT, padx=2)
+
+        # Кнопка "Новая сессия"/"Завершить сессию"
+        self.startterminate_session_button = tk.Button(
+            self.top_frame,
+            font=("Helvetica", 12),
+            text=BUTTON_SESSIONS_DICT[app.is_in_session],
+            command=app.startterminate_session
+        )
+        self.startterminate_session_button.pack(side=tk.LEFT, padx=2)  # Отступ между кнопкой и метками
+        
+        # Кнопка "Задним числом"
+        self.retroactively_termination_button = tk.Button(
+            self.top_frame,
+            font=("Helvetica", 8),
+            text="Задним\nчислом",
+            state=BUTTON_PARAM_STATE_DICT[app.is_in_session],
+            command=app.retroactively_termination
+        )
+        self.retroactively_termination_button.pack(side=tk.LEFT, padx=4, ipady=0)
+        self.retroactively_termination_button.config(
+            state=BUTTON_PARAM_STATE_DICT[bool(app.amount_of_subsessions) and app.is_in_session]
+        )
+        
+        # --- ДВЕ ПОЛОВИНЫ ---
+        # Создаем фрейм для разделения на две половины
+        self.main_frame = tk.Frame(root)
+        self.main_frame.pack(pady=0)
+
+        # Левая половина
+        self.left_frame = tk.Frame(self.main_frame)
+        self.left_frame.pack(side=tk.LEFT, padx=50)
+
+        # Часы 1
+        self.time_1_label = tk.Label(
+            self.left_frame,
+            text=time.strftime("%H:%M:%S", time.gmtime(app.timer_activity[app.activity_1])),
+            font=("Helvetica", 36)
+        )
+        self.time_1_label.pack()
+
+        # Комбобокс 1
+        self.combobox_1_value = tk.StringVar()  # нужен для работа с выбранным значением комбобокса
+        self.combobox_1 = ttk.Combobox(
+            self.left_frame,
+            textvariable=self.combobox_1_value,
+            values=list(app.activities_dict_to_show.values()),
+            state='readonly'
+        )
+        self.combobox_1.pack(pady=5)
+        self.combobox_1_value.set(app.activities_dict_to_show[app.activity_1])
+        self.combobox_1.bind("<<ComboboxSelected>>", app.on_select_combo_1)
+
+        # Кнопка "Старт 1"
+        self.start1_button = tk.Button(
+            self.left_frame,
+            text="Старт 1",
+            command=app.start_timer_1,
+            font=("Helvetica", 14),
+            width=10,
+            height=1, 
+            state=BUTTON_PARAM_STATE_DICT[app.is_in_session]
+        )
+        self.start1_button.pack(pady=5)
+
+        # Правая половина
+        self.right_frame = tk.Frame(self.main_frame)
+        self.right_frame.pack(side=tk.RIGHT, padx=50)
+
+        # Часы 2
+        self.time_2_label = tk.Label(
+            self.right_frame,
+            text=time.strftime("%H:%M:%S", time.gmtime(app.timer_activity[app.activity_2])),
+            font=("Helvetica", 36)
+        )
+        self.time_2_label.pack()
+
+        # Комбобокс 2
+        self.combobox_2_value = tk.StringVar()  # нужен для работа с выбранным значением комбобокса
+        self.combobox_2 = ttk.Combobox(
+            self.right_frame,
+            textvariable=self.combobox_2_value,
+            values=list(app.activities_dict_to_show.values()),
+            state='readonly'
+        )
+        self.combobox_2.pack(pady=5)
+        self.combobox_2_value.set(app.activities_dict_to_show[app.activity_2])
+        self.combobox_2.bind("<<ComboboxSelected>>", app.on_select_combo_2)
+
+        # Кнопка "Старт 2"
+        self.start2_button = tk.Button(
+            self.right_frame,
+            text="Старт 2",
+            command=app.start_timer_2,
+            font=("Helvetica", 14),
+            width=10,
+            height=1, 
+            state=BUTTON_PARAM_STATE_DICT[app.is_in_session]
+        )
+        self.start2_button.pack(pady=5)
+
+        # Кнопка "Стоп" внизу
+        self.stop_button = tk.Button(
+            root,
+            text="Стоп",
+            command=app.stop_timers,
+            font=("Helvetica", 14),
+            width=30,
+            height=1, 
+            state=BUTTON_PARAM_STATE_DICT[app.is_in_session]
+        )
+        self.stop_button.pack(pady=10)
+        
+        # ГОРЯЧИЕ КЛАВИШИ -  имитируем нажатие нарисованных кнопок
+        keyboard.add_hotkey('Alt+F10', self.start1_button.invoke)
+        keyboard.add_hotkey('Alt+F11', self.stop_button.invoke)
+        keyboard.add_hotkey('Alt+F12', self.start2_button.invoke)        
+        
+    def on_closing(self):
+        app.stop_timers()
+        self.root.destroy()
+        
+
+class ApplicationLogic:
+    def __init__(self):
         self.db = DB()
         try:
             with open(FILENAME_CURRENT, 'r') as file_current:
@@ -85,164 +247,6 @@ class TrackerApp:
         self.running_1 = False
         self.running_2 = False
 
-        #  - - - - ВСЁ ДАЛЬШЕ в __init__ -- ИНТЕРФЕЙС! - - - -    (кроме горячих клавиш, они в самом конце)
-
-        self.root = root
-        self.root.title("Мой трекер")
-        self.root.geometry("678x250")  # Устанавливаем размер окна
-        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)  # определяем метод закрытия окна
-        self.DEFAULT_WIN_COLOR = self.root.cget("background")
-        
-        # --- ПЕРВАЯ СТРОКА ---
-        # Создаем фрейм для первой строки
-        self.top_frame = tk.Frame(root)
-        self.top_frame.pack(pady=5)
-
-        # Создаем метку для текста "Сессия:"
-        self.session_text_label = tk.Label(self.top_frame, text="Сессия:", font=("Helvetica", 14))
-        self.session_text_label.pack(side=tk.LEFT)
-
-        # Создаем метку для отображения номера текущей сессии
-        self.current_session_value_label = tk.Label(
-            self.top_frame,
-            text=self.session_number,
-            font=("Helvetica", 18)
-        )
-        self.current_session_value_label.pack(side=tk.LEFT, padx=10)  # Отступ между метками
-
-        # Метка для текста "Началась:"/"Длилась:"
-        self.start_text_label = tk.Label(
-            self.top_frame,
-            text=START_TEXT_LABEL_DICT[self.is_in_session],
-            font=("Helvetica", 14)
-        )
-        self.start_text_label.pack(side=tk.LEFT, padx=2)
-
-        # Метка для времени начала сессии
-        self.start_sess_datetime_label = tk.Label(
-            self.top_frame,
-            text=self.start_current_session if self.is_in_session else self.duration_current_session,
-            font=("Helvetica", 14)
-        )
-        self.start_sess_datetime_label.pack(side=tk.LEFT, padx=2)
-
-        # Кнопка "Новая сессия"/"Завершить сессию"
-        self.startterminate_session_button = tk.Button(
-            self.top_frame,
-            font=("Helvetica", 12),
-            text=BUTTON_SESSIONS_DICT[self.is_in_session],
-            command=self.startterminate_session
-        )
-        self.startterminate_session_button.pack(side=tk.LEFT, padx=2)  # Отступ между кнопкой и метками
-        
-        # Кнопка "Задним числом"
-        self.retroactively_termination_button = tk.Button(
-            self.top_frame,
-            font=("Helvetica", 8),
-            text="Задним\nчислом",
-            state=BUTTON_PARAM_STATE_DICT[self.is_in_session],
-            command=self.retroactively_termination
-        )
-        self.retroactively_termination_button.pack(side=tk.LEFT, padx=4, ipady=0)
-        self.retroactively_termination_button.config(
-            state=BUTTON_PARAM_STATE_DICT[bool(self.amount_of_subsessions) and self.is_in_session]
-        )
-        
-        # --- ДВЕ ПОЛОВИНЫ ---
-        # Создаем фрейм для разделения на две половины
-        self.frame = tk.Frame(root)
-        self.frame.pack(pady=0)
-
-        # Левая половина
-        self.left_frame = tk.Frame(self.frame)
-        self.left_frame.pack(side=tk.LEFT, padx=50)
-
-        # Часы 1
-        self.time_1_label = tk.Label(
-            self.left_frame,
-            text=time.strftime("%H:%M:%S", time.gmtime(self.timer_activity[self.activity_1])),
-            font=("Helvetica", 36)
-        )
-        self.time_1_label.pack()
-
-        # Комбобокс 1
-        self.combobox_1_value = tk.StringVar()  # нужен для работа с выбранным значением комбобокса
-        self.combobox_1 = ttk.Combobox(
-            self.left_frame,
-            textvariable=self.combobox_1_value,
-            values=list(self.activities_dict_to_show.values()),
-            state='readonly'
-        )
-        self.combobox_1.pack(pady=5)
-        self.combobox_1_value.set(self.activities_dict_to_show[self.activity_1])
-        self.combobox_1.bind("<<ComboboxSelected>>", self.on_select_combo_1)
-
-        # Кнопка "Старт 1"
-        self.start1_button = tk.Button(
-            self.left_frame,
-            text="Старт 1",
-            command=self.start_timer_1,
-            font=("Helvetica", 14),
-            width=10,
-            height=1, 
-            state=BUTTON_PARAM_STATE_DICT[self.is_in_session]
-        )
-        self.start1_button.pack(pady=5)
-
-        # Правая половина
-        self.right_frame = tk.Frame(self.frame)
-        self.right_frame.pack(side=tk.RIGHT, padx=50)
-
-        # Часы 2
-        self.time_2_label = tk.Label(
-            self.right_frame,
-            text=time.strftime("%H:%M:%S", time.gmtime(self.timer_activity[self.activity_2])),
-            font=("Helvetica", 36)
-        )
-        self.time_2_label.pack()
-
-        # Комбобокс 2
-        self.combobox_2_value = tk.StringVar()  # нужен для работа с выбранным значением комбобокса
-        self.combobox_2 = ttk.Combobox(
-            self.right_frame,
-            textvariable=self.combobox_2_value,
-            values=list(self.activities_dict_to_show.values()),
-            state='readonly'
-        )
-        self.combobox_2.pack(pady=5)
-        self.combobox_2_value.set(self.activities_dict_to_show[self.activity_2])
-        self.combobox_2.bind("<<ComboboxSelected>>", self.on_select_combo_2)
-
-        # Кнопка "Старт 2"
-        self.start2_button = tk.Button(
-            self.right_frame,
-            text="Старт 2",
-            command=self.start_timer_2,
-            font=("Helvetica", 14),
-            width=10,
-            height=1, 
-            state=BUTTON_PARAM_STATE_DICT[self.is_in_session]
-        )
-        self.start2_button.pack(pady=5)
-
-        # Кнопка "Стоп" внизу
-        self.stop_button = tk.Button(
-            root,
-            text="Стоп",
-            command=self.stop_timers,
-            font=("Helvetica", 14),
-            width=30,
-            height=1, 
-            state=BUTTON_PARAM_STATE_DICT[self.is_in_session]
-        )
-        self.stop_button.pack(pady=10)
-        
-        # ГОРЯЧИЕ КЛАВИШИ -  имитируем нажатие нарисованных кнопок
-        keyboard.add_hotkey('Alt+F10', self.start1_button.invoke)
-        keyboard.add_hotkey('Alt+F11', self.stop_button.invoke)
-        keyboard.add_hotkey('Alt+F12', self.start2_button.invoke)
-
-
     def save_current_to_file(self):
         with open(FILENAME_CURRENT, 'w') as file_current:
             text = IS_IN_SESSION_DICT[self.is_in_session] + '\n' + \
@@ -257,37 +261,33 @@ class TrackerApp:
                 text += str(self.duration_current_session_sec) + '\n'
             file_current.write(text)
     
-    def on_closing(self):
-        self.stop_timers()
-        self.root.destroy()
-
     def on_select_combo_1(self, event=None):
-        self.activity_1 = self.combobox_1.current() + 1
-        self.time_1_label.config(
+        self.activity_1 = gui.combobox_1.current() + 1
+        gui.time_1_label.config(
             text=time.strftime("%H:%M:%S", time.gmtime(self.timer_activity[self.activity_1]))
         )
         if self.running:
             if not self.running_1:
                 if self.activity_1 == self.activity_2:
                     self.running_1 = True
-                    self.start1_button.config(state='disabled')
+                    gui.start1_button.config(state='disabled')
             else:
                 self.running_1 = False
-                self.start1_button.config(state='normal')
+                gui.start1_button.config(state='normal')
 
     def on_select_combo_2(self, event=None):
-        self.activity_2 = self.combobox_2.current() + 1
-        self.time_2_label.config(
+        self.activity_2 = gui.combobox_2.current() + 1
+        gui.time_2_label.config(
             text=time.strftime("%H:%M:%S", time.gmtime(self.timer_activity[self.activity_2]))
         )
         if self.running:
             if not self.running_2:
                 if self.activity_2 == self.activity_1:
                     self.running_2 = True
-                    self.start2_button.config(state='disabled')
+                    gui.start2_button.config(state='disabled')
             else:
                 self.running_2 = False
-                self.start2_button.config(state='normal')
+                gui.start2_button.config(state='normal')
         
     def start_session(self):
         print("Начинаем новую сессию...")
@@ -295,11 +295,11 @@ class TrackerApp:
         self.running_1 = False
         self.running_2 = False
         self.session_number += 1
-        self.current_session_value_label.config(text=self.session_number)
+        gui.current_session_value_label.config(text=self.session_number)
         for key in self.timer_activity:
             self.timer_activity[key] = 0
-        self.time_1_label.config(text="00:00:00")
-        self.time_2_label.config(text="00:00:00")
+        gui.time_1_label.config(text="00:00:00")
+        gui.time_2_label.config(text="00:00:00")
         self.start_current_session_sec = time.time()
         self.start_current_session = \
             time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.start_current_session_sec))
@@ -347,26 +347,26 @@ class TrackerApp:
         if self.is_in_session:
             self.terminate_session(retroactively)
             self.is_in_session = False
-            self.start_sess_datetime_label.config(text=self.duration_current_session)
+            gui.start_sess_datetime_label.config(text=self.duration_current_session)
         else:
             self.start_session()
             self.is_in_session = True
-            self.start_sess_datetime_label.config(text=self.start_current_session)
-        self.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[False])
-        self.start1_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
-        self.start2_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
-        self.stop_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
-        self.startterminate_session_button.config(text=BUTTON_SESSIONS_DICT[self.is_in_session])
-        self.start_text_label.config(text=START_TEXT_LABEL_DICT[self.is_in_session])
+            gui.start_sess_datetime_label.config(text=self.start_current_session)
+        gui.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[False])
+        gui.start1_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
+        gui.start2_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
+        gui.stop_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
+        gui.startterminate_session_button.config(text=BUTTON_SESSIONS_DICT[self.is_in_session])
+        gui.start_text_label.config(text=START_TEXT_LABEL_DICT[self.is_in_session])
         self.save_current_to_file()
         
     def retroactively_termination(self):
         # создаём диалоговое окно
-        retroactively_termination_dialog = tk.Toplevel(self.root)
+        retroactively_termination_dialog = tk.Toplevel(gui.root)
         
         # указываем, что наше диалоговое окно -- временное по отношению к родительскому окну
         # в т.ч. это убирает кнопки Свернуть/Развернуть, оставляя только крестик в углу
-        retroactively_termination_dialog.transient(self.root)
+        retroactively_termination_dialog.transient(gui.root)
         
         retroactively_termination_dialog.grab_set()   # блокируем кнопки родительского окна
         
@@ -375,8 +375,8 @@ class TrackerApp:
         height = 140
         
         # Получаем размеры основного окна - нужно для центрирования нашего окна
-        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - width // 2
-        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - height // 2
+        x = gui.root.winfo_x() + (gui.root.winfo_width() // 2) - width // 2
+        y = gui.root.winfo_y() + (gui.root.winfo_height() // 2) - height // 2
         
         retroactively_termination_dialog.geometry(f"{width}x{height}+{x}+{y}")   # указываем размеры и центрируем
         retroactively_termination_dialog.title("Завершить сессию задним числом")
@@ -482,16 +482,16 @@ class TrackerApp:
             self.timer_activity[self.activity_2] += 1 
         
         if self.running_1:
-            self.time_1_label.config(
+            gui.time_1_label.config(
                 text=time.strftime("%H:%M:%S", time.gmtime(self.timer_activity[self.activity_1]))
             )
         if self.running_2:
-            self.time_2_label.config(
+            gui.time_2_label.config(
                 text=time.strftime("%H:%M:%S", time.gmtime(self.timer_activity[self.activity_2]))
             )
         
         self.timer_until_the_next_stop += 1           
-        self.root.after(
+        gui.root.after(
             int(1000*(1 + self.start_timer_time + self.timer_until_the_next_stop - time.perf_counter())),
             self.update_time
         )
@@ -502,7 +502,7 @@ class TrackerApp:
         #   моего таймера и системных часов с точностью примерно 20мс, из-за чего не происходит
         #   накопления ошибки
         # Для пущей точности я НЕ выделяю эту формулу в отдельную переменную, т.к. имеет смысл максимально
-        #   сблизить момент вычисления time.perf_counter() и передачу вычисленной задержки в self.root.after
+        #   сблизить момент вычисления time.perf_counter() и передачу вычисленной задержки в gui.root.after
         # По этой же причине time.perf_counter() стоит в самом конце формулы. Небольшая, но красивая оптимизация
 
     def update_time_starting(self):
@@ -512,7 +512,7 @@ class TrackerApp:
         """
         self.start_timer_time = time.perf_counter()
         self.timer_until_the_next_stop = 0
-        self.root.after(
+        gui.root.after(
             int(1000*(1 + self.start_timer_time + self.timer_until_the_next_stop - time.perf_counter())),
             self.update_time
         )
@@ -528,7 +528,7 @@ class TrackerApp:
         self.running_1 = True
         self.running_2 = False
         self.working_timer = 1
-        self.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[False])
+        gui.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[False])
         if not self.running:
             self.running = True
             self.on_select_combo_2()
@@ -547,10 +547,10 @@ class TrackerApp:
         self.save_current_to_file()
         self.start_subs_datetime_sec = time.time()
         self.current_activity = self.activity_1
-        self.combobox_1.config(state='disabled')
-        self.combobox_2.config(state='readonly')
-        self.time_1_label.config(bg='green')
-        self.time_2_label.config(bg=self.DEFAULT_WIN_COLOR)
+        gui.combobox_1.config(state='disabled')
+        gui.combobox_2.config(state='readonly')
+        gui.time_1_label.config(bg='green')
+        gui.time_2_label.config(bg=gui.DEFAULT_WIN_COLOR)
 
     def start_timer_2(self):
         """
@@ -561,7 +561,7 @@ class TrackerApp:
         self.running_1 = False
         self.running_2 = True
         self.working_timer = 2
-        self.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[False])
+        gui.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[False])
         if not self.running:
             self.running = True
             self.on_select_combo_1()
@@ -580,10 +580,10 @@ class TrackerApp:
         self.save_current_to_file()
         self.start_subs_datetime_sec = time.time()
         self.current_activity = self.activity_2
-        self.combobox_1.config(state='readonly')
-        self.combobox_2.config(state='disabled')
-        self.time_1_label.config(bg=self.DEFAULT_WIN_COLOR)
-        self.time_2_label.config(bg='green')
+        gui.combobox_1.config(state='readonly')
+        gui.combobox_2.config(state='disabled')
+        gui.time_1_label.config(bg=gui.DEFAULT_WIN_COLOR)
+        gui.time_2_label.config(bg='green')
 
     def stop_timers(self):
         """
@@ -595,13 +595,13 @@ class TrackerApp:
         self.running_1 = False
         self.running_2 = False
         
-        self.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[True])
-        self.combobox_1.config(state='readonly')
-        self.combobox_2.config(state='readonly')
-        self.start1_button.config(state='normal')
-        self.start2_button.config(state='normal')
-        self.time_1_label.config(bg=self.DEFAULT_WIN_COLOR)
-        self.time_2_label.config(bg=self.DEFAULT_WIN_COLOR)
+        gui.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[True])
+        gui.combobox_1.config(state='readonly')
+        gui.combobox_2.config(state='readonly')
+        gui.start1_button.config(state='normal')
+        gui.start2_button.config(state='normal')
+        gui.time_1_label.config(bg=gui.DEFAULT_WIN_COLOR)
+        gui.time_2_label.config(bg=gui.DEFAULT_WIN_COLOR)
         self.save_current_to_file()
 
         self.end_subs_datetime_sec = time.time()
@@ -618,6 +618,7 @@ class TrackerApp:
 
 
 if __name__ == "__main__":
+    app = ApplicationLogic()
     root = tk.Tk()
-    app = TrackerApp(root)
+    gui = GuiLayer(root)
     root.mainloop()
