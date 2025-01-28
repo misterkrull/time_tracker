@@ -1,3 +1,8 @@
 **/__pycache__/
+
+/.idea/
+/venv/
+
 /app_state.txt
 /time_tracker.db
+/tracker заметки.lnk
