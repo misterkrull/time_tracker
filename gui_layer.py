@@ -85,7 +85,10 @@ class GuiLayer:
         # Часы 1
         self.time_1_label = tk.Label(
             self.left_frame,
-            text=time.strftime("%H:%M:%S", time.gmtime(app.timer_activity[app.activity_1])),
+            text=time.strftime(
+                "%H:%M:%S",
+                time.gmtime(app.durations_of_activities_in_current_session[app.activity_in_timer1])
+            ),
             font=("Helvetica", 36)
         )
         self.time_1_label.pack()
@@ -99,7 +102,7 @@ class GuiLayer:
             state='readonly'
         )
         self.combobox_1.pack(pady=5)
-        self.combobox_1_value.set(app.activities_dict_to_show[app.activity_1])
+        self.combobox_1_value.set(app.activities_dict_to_show[app.activity_in_timer1])
         self.combobox_1.bind("<<ComboboxSelected>>", app.on_select_combo_1)
 
         # Кнопка "Старт 1"
@@ -121,7 +124,10 @@ class GuiLayer:
         # Часы 2
         self.time_2_label = tk.Label(
             self.right_frame,
-            text=time.strftime("%H:%M:%S", time.gmtime(app.timer_activity[app.activity_2])),
+            text=time.strftime(
+                "%H:%M:%S",
+                time.gmtime(app.durations_of_activities_in_current_session[app.activity_in_timer2])
+            ),
             font=("Helvetica", 36)
         )
         self.time_2_label.pack()
@@ -135,7 +141,7 @@ class GuiLayer:
             state='readonly'
         )
         self.combobox_2.pack(pady=5)
-        self.combobox_2_value.set(app.activities_dict_to_show[app.activity_2])
+        self.combobox_2_value.set(app.activities_dict_to_show[app.activity_in_timer2])
         self.combobox_2.bind("<<ComboboxSelected>>", app.on_select_combo_2)
 
         # Кнопка "Старт 2"

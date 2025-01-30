@@ -11,7 +11,7 @@ from gui_layer import GuiLayer, BUTTON_PARAM_STATE_DICT, BUTTON_SESSIONS_DICT, S
 
 FILENAME_CURRENT = "app_state.txt"
 
-IS_IN_SESSION_DICT = {True: "in_session", False: "not_in_session"}
+# IS_IN_SESSION_DICT = {True: "in_session", False: "not_in_session"}
 
 
 def time_decorator(func):
@@ -27,45 +27,33 @@ def time_decorator(func):
 class ApplicationLogic:
     def __init__(self):
         self.db = DB()
-        try:
-            with open(FILENAME_CURRENT, 'r') as file_current:
-                self.is_in_session = (file_current.readline().strip() == IS_IN_SESSION_DICT[True])
-                self.session_number = int(file_current.readline().strip())
-                self.amount_of_activities = int(file_current.readline().strip())
-                if self.amount_of_activities != len(self.db.get_activities()):
-                    print("Количества активностей в БД и в файле не совпадают!")
-                    return
-                self.timer_activity = {key: 0 for key in range(1, self.amount_of_activities + 1)}
-                for key in self.timer_activity:
-                    self.timer_activity[key] = int(file_current.readline().strip())
-                self.activity_1 = int(file_current.readline().strip())
-                self.activity_2 = int(file_current.readline().strip())
-                if self.is_in_session:
-                    self.start_current_session_sec = float(file_current.readline().strip())
-                    self.start_current_session = \
-                        time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.start_current_session_sec))
-                else:
-                    self.duration_current_session_sec = float(file_current.readline().strip())
-                    if self.duration_current_session_sec == -1.2345:  # специальное значение
-                        self.duration_current_session = "--:--:--"
-                    else:
-                        self.duration_current_session = \
-                            time.strftime("%H:%M:%S", time.gmtime(self.duration_current_session_sec))
-        except:
-            print("Не удалось прочитать из файла, ставим в 0")
-            self.is_in_session = False
-            self.session_number = 0
-            self.amount_of_activities = len(self.db.get_activities())
-            self.timer_activity = {key:0 for key in range(1, self.amount_of_activities + 1)}
-            for key in self.timer_activity:
-                self.timer_activity[key] = 0
-            self.activity_1 = 1
-            self.activity_2 = 2
-            self.duration_current_session_sec = -1.2345  # специальное значение тут создаётся
-            self.duration_current_session = "--:--:--"
 
-        self.timer_1 = self.timer_activity[self.activity_1]
-        self.timer_2 = self.timer_activity[self.activity_2]
+        initialize_from_db = self.db.initialize_from_db()
+        self.is_in_session: bool = initialize_from_db['is_in_session']
+        self.activity_in_timer1: int = initialize_from_db['activity_in_timer1']
+        self.activity_in_timer2: int = initialize_from_db['activity_in_timer2']
+        self.start_current_session_sec: float = initialize_from_db['start_current_session_sec']
+        self.durations_of_activities_in_current_session: dict[int, int] = \
+            initialize_from_db['durations_of_activities_in_current_session'].copy()
+        self.amount_of_activities: int = initialize_from_db['amount_of_activities']
+        self.session_number: int = initialize_from_db['session_number']
+        self.duration_current_session_sec: float = initialize_from_db['duration_current_session_sec']
+            # да, это всё можно было бы одной строкой записать,
+            # но зато сейчас все переменные видны как на ладони
+        
+        self.start_current_session = time.strftime(
+            "%Y-%m-%d %H:%M:%S",
+            time.localtime(self.start_current_session_sec)
+        )
+
+        if self.duration_current_session_sec == 0.0:  # специальное значение TODO БЛИИИИН НЕ, ЭТО КРИВАЯ ЛОГИКА!!
+                                                      # ибо будет рисовать чёрточки для пустой сессии, а это неправильно
+            self.duration_current_session = "--:--:--"
+        else:
+            self.duration_current_session = time.strftime(
+                "%H:%M:%S",
+                time.gmtime(self.duration_current_session_sec)
+            )
         
         self.activities_dict = self.db.get_activities()
         self.activities_dict_to_show = {k:f"{k}. {v}" for (k, v) in self.activities_dict.items()}
@@ -83,28 +71,25 @@ class ApplicationLogic:
         self.running_1 = False
         self.running_2 = False
 
-    def save_current_to_file(self):
-        with open(FILENAME_CURRENT, 'w') as file_current:
-            text = IS_IN_SESSION_DICT[self.is_in_session] + '\n' + \
-                   str(self.session_number) + '\n' + \
-                   str(self.amount_of_activities) + '\n'
-            for key in self.timer_activity:
-                text += str(self.timer_activity[key]) + '\n' 
-            text += str(self.activity_1) + '\n' + str(self.activity_2) + '\n'
-            if self.is_in_session:
-                text += str(self.start_current_session_sec) + '\n'
-            else:
-                text += str(self.duration_current_session_sec) + '\n'
-            file_current.write(text)
-    
+    def save_current_to_file(self):  # TODO надо заменить всё это дело!
+        self.db.update_app_state(
+            self.is_in_session,
+            self.activity_in_timer1,
+            self.activity_in_timer2,
+            self.start_current_session_sec
+        )
+        
     def on_select_combo_1(self, event=None):
-        self.activity_1 = gui.combobox_1.current() + 1
+        self.activity_in_timer1 = gui.combobox_1.current() + 1
         gui.time_1_label.config(
-            text=time.strftime("%H:%M:%S", time.gmtime(self.timer_activity[self.activity_1]))
+            text=time.strftime(
+                "%H:%M:%S",
+                time.gmtime(self.durations_of_activities_in_current_session[self.activity_in_timer1])
+            )
         )
         if self.running:
             if not self.running_1:
-                if self.activity_1 == self.activity_2:
+                if self.activity_in_timer1 == self.activity_in_timer2:
                     self.running_1 = True
                     gui.start1_button.config(state='disabled')
             else:
@@ -112,13 +97,16 @@ class ApplicationLogic:
                 gui.start1_button.config(state='normal')
 
     def on_select_combo_2(self, event=None):
-        self.activity_2 = gui.combobox_2.current() + 1
+        self.activity_in_timer2 = gui.combobox_2.current() + 1
         gui.time_2_label.config(
-            text=time.strftime("%H:%M:%S", time.gmtime(self.timer_activity[self.activity_2]))
+            text=time.strftime(
+                "%H:%M:%S",
+                time.gmtime(self.durations_of_activities_in_current_session[self.activity_in_timer2])
+            )
         )
         if self.running:
             if not self.running_2:
-                if self.activity_2 == self.activity_1:
+                if self.activity_in_timer2 == self.activity_in_timer1:
                     self.running_2 = True
                     gui.start2_button.config(state='disabled')
             else:
@@ -132,8 +120,8 @@ class ApplicationLogic:
         self.running_2 = False
         self.session_number += 1
         gui.current_session_value_label.config(text=self.session_number)
-        for key in self.timer_activity:
-            self.timer_activity[key] = 0
+        for key in self.durations_of_activities_in_current_session:
+            self.durations_of_activities_in_current_session[key] = 0
         gui.time_1_label.config(text="00:00:00")
         gui.time_2_label.config(text="00:00:00")
         self.start_current_session_sec = time.time()
@@ -313,17 +301,23 @@ class ApplicationLogic:
             return
         
         if self.working_timer == 1:
-            self.timer_activity[self.activity_1] += 1
+            self.durations_of_activities_in_current_session[self.activity_in_timer1] += 1
         if self.working_timer == 2:
-            self.timer_activity[self.activity_2] += 1 
+            self.durations_of_activities_in_current_session[self.activity_in_timer2] += 1 
         
         if self.running_1:
             gui.time_1_label.config(
-                text=time.strftime("%H:%M:%S", time.gmtime(self.timer_activity[self.activity_1]))
+                text=time.strftime(
+                    "%H:%M:%S", 
+                    time.gmtime(self.durations_of_activities_in_current_session[self.activity_in_timer1])
+                )
             )
         if self.running_2:
             gui.time_2_label.config(
-                text=time.strftime("%H:%M:%S", time.gmtime(self.timer_activity[self.activity_2]))
+                text=time.strftime(
+                    "%H:%M:%S",
+                    time.gmtime(self.durations_of_activities_in_current_session[self.activity_in_timer2])
+                )
             )
         
         self.timer_until_the_next_stop += 1           
@@ -382,7 +376,7 @@ class ApplicationLogic:
             self.amount_of_subsessions += 1
         self.save_current_to_file()
         self.start_subs_datetime_sec = time.time()
-        self.current_activity = self.activity_1
+        self.current_activity = self.activity_in_timer1
         gui.combobox_1.config(state='disabled')
         gui.combobox_2.config(state='readonly')
         gui.time_1_label.config(bg='green')
@@ -415,7 +409,7 @@ class ApplicationLogic:
             self.amount_of_subsessions += 1
         self.save_current_to_file()
         self.start_subs_datetime_sec = time.time()
-        self.current_activity = self.activity_2
+        self.current_activity = self.activity_in_timer2
         gui.combobox_1.config(state='readonly')
         gui.combobox_2.config(state='disabled')
         gui.time_1_label.config(bg=gui.DEFAULT_WIN_COLOR)
