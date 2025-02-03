@@ -19,7 +19,7 @@ def time_decorator(func):
         start_time = time.time()
         result = func(*args, **kwargs)
         end_time = time.time()
-        print(f"Функция '{func.__name__}' выполнена за {end_time - start_time:.6f} секунд.")
+        print(f"Функция '{func.__name__}' выполнена за {1000 * (end_time - start_time):.3f} миллисекунд.")
         return result
     return wrapper
         
@@ -56,7 +56,7 @@ class ApplicationLogic:
             )
         
         self.activities_dict = self.db.get_activities()
-        self.activities_dict_to_show = {k:f"{k}. {v}" for (k, v) in self.activities_dict.items()}
+        self.activities_dict_to_show = {k:f"{k}. {w}" for (k, w) in self.activities_dict.items()}
         
         self.amount_of_subsessions = self.db.get_amount_of_subsessions(self.session_number)
         print("Количество подсессий:", self.amount_of_subsessions)
@@ -71,12 +71,14 @@ class ApplicationLogic:
         self.running_1 = False
         self.running_2 = False
 
+    @time_decorator
     def save_current_to_file(self):  # TODO надо заменить всё это дело!
         self.db.update_app_state(
             self.is_in_session,
             self.activity_in_timer1,
             self.activity_in_timer2,
-            self.start_current_session_sec
+            self.start_current_session_sec,
+            self.durations_of_activities_in_current_session
         )
         
     def on_select_combo_1(self, event=None):
@@ -342,6 +344,7 @@ class ApplicationLogic:
         """
         self.start_timer_time = time.perf_counter()
         self.timer_until_the_next_stop = 0
+        # TODO тут правда нужен gui? что-то странно...
         gui.root.after(
             int(1000*(1 + self.start_timer_time + self.timer_until_the_next_stop - time.perf_counter())),
             self.update_time
@@ -349,6 +352,7 @@ class ApplicationLogic:
         # Здесь формулу оставил такой же, как и в методе update_time(): для пущей наглядности
         # Даже не стал убирать нулевой self.timer_until_the_next_stop
 
+    @time_decorator
     def start_timer_1(self):
         """
 Запускается при нажатии на кнопку "Старт 1"
@@ -382,6 +386,7 @@ class ApplicationLogic:
         gui.time_1_label.config(bg='green')
         gui.time_2_label.config(bg=gui.DEFAULT_WIN_COLOR)
 
+    @time_decorator
     def start_timer_2(self):
         """
 Запускается при нажатии на кнопку "Старт 2"
@@ -415,6 +420,7 @@ class ApplicationLogic:
         gui.time_1_label.config(bg=gui.DEFAULT_WIN_COLOR)
         gui.time_2_label.config(bg='green')
 
+    @time_decorator
     def stop_timers(self):
         """
 Запускается при нажатии на кнопку "Стоп"

@@ -132,6 +132,7 @@ class DB:
         print(session_number, activity, start_subs_datetime, end_subs_datetime, subs_duration)
         self.conn.commit()
         
+        # TODO переделать: сразу сделать SQL-запрос. который считает
     def get_amount_of_subsessions(self, session_number: int) -> int:
         self.cur.execute(
             "SELECT * FROM subsessions WHERE session_number=?", (session_number,)
@@ -217,12 +218,15 @@ class DB:
 
         return result
 
+    # TODO переименовать эту функцию: мы ведь не только таблицу app_state меняем...
+    # TODO да и таблица app_state не совсем соответствует названию: состояние приложения хранится ещё и в другой таблице...
     def update_app_state(
         self,
         is_in_session: bool,
         activity_in_timer1: int,
         activity_in_timer2: int,
-        start_current_session_sec: float
+        start_current_session_sec: float,
+        durations_of_activities_in_current_session: dict[int, int]
     ) -> None:
         self.cur.execute(
             "UPDATE app_state SET word = CASE "
@@ -235,4 +239,11 @@ class DB:
                 f"WHEN key = 'start_current_session_sec' THEN {start_current_session_sec} "
             "END;"
         )
+        
+        sql_query = "UPDATE activities SET duration_in_current_session = CASE "
+        for (k, w) in durations_of_activities_in_current_session.items():
+            sql_query += f"WHEN id = {k} THEN {w} "
+        sql_query += "END;"
+
+        self.cur.execute(sql_query)
         self.conn.commit()
