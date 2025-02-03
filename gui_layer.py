@@ -175,4 +175,5 @@ class GuiLayer:
         
     def on_closing(self, app):
         app.stop_timers()
+        app.save_current_to_file()
         self.root.destroy()
