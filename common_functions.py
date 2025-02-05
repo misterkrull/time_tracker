@@ -19,30 +19,17 @@ def sec_to_time(sec: int | float) -> str:
     return f"{hours:02}:{minutes:02}:{seconds:02}"
 
 
-def time_to_sec(HMS: str) -> int:
-    hours, minutes, seconds = map(int, HMS.split(':'))
-    return 3600 * hours + 60 * minutes + seconds
-
-
-# версия той же функции с обработкой ошибок -- может пригодится
-# def time_to_sec(time: str) -> int:
-#     try:
-#         hours, minutes, seconds = map(int, time.split(':'))
-#         return 3600 * hours + 60 * minutes + seconds
-#     except:  # TODO сделать тут нормальную обработку ошибок
-#         return 0
-
-
 def sec_to_datetime(sec: int | float) -> str:
     return time.strftime(
         "%Y-%m-%d %H:%M:%S",
-        time.gmtime(time.localtime(sec))
+        time.localtime(sec)
     )
 
 
-def datetime_to_sec(Ymd_HMS: str) -> int:
-    return int(datetime.strptime(Ymd_HMS, "%Y-%m-%d %H:%M:%S").timestamp())
+def time_to_sec(time_HMS: str) -> int:
+    hours, minutes, seconds = map(int, time_HMS.split(':'))
+    return 3600 * hours + 60 * minutes + seconds
 
 
-if __name__ == "__main__":
-    print(sec_to_time(8667))
+def datetime_to_sec(datetime_Ymd_HMS: str) -> int:
+    return int(datetime.strptime(datetime_Ymd_HMS, "%Y-%m-%d %H:%M:%S").timestamp())
