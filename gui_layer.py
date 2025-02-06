@@ -1,10 +1,10 @@
-from datetime import datetime
 import keyboard
 import sys
 import threading
-import time
 import tkinter as tk
 from tkinter import messagebox, ttk
+
+from common_functions import time_decorator, sec_to_time, time_to_sec, sec_to_datetime, datetime_to_sec
 
 BUTTON_PARAM_STATE_DICT = {True: "normal", False: "disabled"}
 BUTTON_SESSIONS_DICT = {True: "Завершить сессию", False: "Новая сессия"}
@@ -85,10 +85,7 @@ class GuiLayer:
         # Часы 1
         self.time_1_label = tk.Label(
             self.left_frame,
-            text=time.strftime(
-                "%H:%M:%S",
-                time.gmtime(app.durations_of_activities_in_current_session[app.activity_in_timer1])
-            ),
+            text=sec_to_time(app.durations_of_activities_in_current_session[app.activity_in_timer1]),
             font=("Helvetica", 36)
         )
         self.time_1_label.pack()
@@ -124,10 +121,7 @@ class GuiLayer:
         # Часы 2
         self.time_2_label = tk.Label(
             self.right_frame,
-            text=time.strftime(
-                "%H:%M:%S",
-                time.gmtime(app.durations_of_activities_in_current_session[app.activity_in_timer2])
-            ),
+            text=sec_to_time(app.durations_of_activities_in_current_session[app.activity_in_timer2]),
             font=("Helvetica", 36)
         )
         self.time_2_label.pack()
@@ -175,5 +169,5 @@ class GuiLayer:
         
     def on_closing(self, app):
         app.stop_timers()
-        app.save_current_to_file()
+        app.db.save_app_state(app.activity_in_timer1, app.activity_in_timer2)
         self.root.destroy()

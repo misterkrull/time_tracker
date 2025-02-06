@@ -1,10 +1,10 @@
-from datetime import datetime
 import keyboard
 import sys
 import threading
 import time
 import tkinter as tk
 from tkinter import messagebox, ttk
+from typing import Any
 
 from common_functions import time_decorator, sec_to_time, time_to_sec, sec_to_datetime, datetime_to_sec
 from db_manager import DB
@@ -15,50 +15,44 @@ class ApplicationLogic:
     def __init__(self):
         self.db = DB()
 
-        initialize_from_db = self.db.initialize_from_db()
-        self.activity_in_timer1: int = initialize_from_db['activity_in_timer1']
-        self.activity_in_timer2: int = initialize_from_db['activity_in_timer2']
-        self.amount_of_activities: int = initialize_from_db['amount_of_activities']
-        self.is_in_session: bool = initialize_from_db['is_in_session']
-        self.session_number: int = initialize_from_db['session_number']
-        self.start_current_session: str = initialize_from_db['start_current_session']
-        self.start_current_session_sec: float = initialize_from_db['start_current_session_sec']
-        self.duration_current_session: str = initialize_from_db['duration_current_session']
-        self.duration_current_session_sec: float = initialize_from_db['duration_current_session_sec']
+        self.activities_dict: dict[int, str] = self.db.get_activities()
+        self.activities_dict_to_show: dict[int, str] = {k:f"{k}. {v}" for (k, v) in self.activities_dict.items()}
+        self.amount_of_activities: int = len(self.activities_dict)
+        
+        last_session: tuple | None = self.db.get_last_session()
+        if last_session == None:  # случай, если у нас ещё не было ни одной сессии (т.е. новая БД)
+            # TODO может быть убрать отсюда те переменные, которые нам будут не нужны?
+            self.is_in_session: bool = False                    # ЭТО НУЖНО
+            self.session_number: int = 0                        # ЭТО НУЖНО
+            self.start_current_session: str = "00:00:00"        # это не нужно
+            self.start_current_session_sec: float = 0.0         # это не нужно
+            self.duration_current_session: str = "--:--:--"     # ЭТО НУЖНО
+            self.duration_current_session_sec: int = 0          # это не нужно
+            # TODO разобрать с int и float у start_current_session_sec и duration_current_session_sec
+            #   т.е. почему в одном случае одно, а в другом -- другое
+            self.durations_of_activities_in_current_session: dict[int, int] = {
+                i + 1: 0 for i in range(self.amount_of_activities)
+            }            
+        else:
+            self.is_in_session: bool = ( last_session[2] == "---" )
+            self.session_number: int = last_session[0]
+            self.start_current_session: str = last_session[1]
+            self.start_current_session_sec: float = float(datetime_to_sec(self.start_current_session))
+            self.duration_current_session: str = last_session[3]
+            self.duration_current_session_sec: int = time_to_sec(self.duration_current_session)
+                # нам в зависимости от is_in_session нужно будет либо start_current_session,
+                #                                                либо duration_current_session
+            self.durations_of_activities_in_current_session: dict[int, int] = {
+                i + 1: v for i, v in enumerate(
+                    map(time_to_sec, last_session[-self.amount_of_activities:])
+                )
+            }
+        self.duration_of_all_activities: int = sum(self.durations_of_activities_in_current_session.values())
 
-        self.durations_of_activities_in_current_session: dict[int, int] = \
-            initialize_from_db['durations_of_activities_in_current_session'].copy()
-            # да, это всё можно было бы одной строкой записать,
-            # но зато сейчас все переменные видны как на ладони
-        self.duration_of_all_activities: int = sum(
-            self.durations_of_activities_in_current_session.values()
-        )
-
-        # self.start_current_session = time.strftime(
-        #     "%Y-%m-%d %H:%M:%S",
-        #     time.localtime(self.start_current_session_sec)
-        # )
-
-        # if self.duration_current_session_sec == 0.0:  # специальное значение TODO БЛИИИИН НЕ, ЭТО КРИВАЯ ЛОГИКА!!
-        #                                               # ибо будет рисовать чёрточки для пустой сессии, а это неправильно
-        #     self.duration_current_session = "--:--:--"
-        # else:
-        #     self.duration_current_session = time.strftime(
-        #         "%H:%M:%S",
-        #         time.gmtime(self.duration_current_session_sec)
-        #     )
-
-        self.activities_dict = self.db.get_activities()
-        self.activities_dict_to_show = {k:f"{k}. {v}" for (k, v) in self.activities_dict.items()}
-
-        self.amount_of_subsessions = self.db.get_amount_of_subsessions(self.session_number)
+        self.amount_of_subsessions: int = self.db.get_amount_of_subsessions(self.session_number)
         print("Количество подсессий:", self.amount_of_subsessions)
-
         if self.amount_of_subsessions > 0:
-            self.end_subs_datetime_sec = datetime.strptime(
-                self.db.get_datetime_of_last_subsession(),
-                '%Y-%m-%d %H:%M:%S'
-            ).timestamp()
+            self.end_subs_datetime_sec: int = datetime_to_sec(self.db.get_datetime_of_last_subsession())
         # это нужно для работы кнопки "Завершить сессию задним числом"
         # проверка self.amount_of_subsessions > 0 по сути ничего не даёт:
         #   если self.amount_of_subsessions == 0, то у нас кнопка "Задним числом" засерена
@@ -66,29 +60,18 @@ class ApplicationLogic:
         # да, тут логичнее было бы проверить количество подсессий во всей таблице subsessions!
         # но у нас такого параметра нет, поэтому проверяем как можем
 
+        app_state: dict[int, Any] = self.db.load_app_state()
+        self.activity_in_timer1: int = app_state['activity_in_timer1']
+        self.activity_in_timer2: int = app_state['activity_in_timer2']
 
         self.running = False
         self.running_1 = False
         self.running_2 = False
 
-    @time_decorator
-    def save_current_to_file(self):  # TODO надо заменить всё это дело!
-        self.db.update_app_state(
-            # self.is_in_session,
-            self.activity_in_timer1,
-            self.activity_in_timer2,
-            # self.start_current_session_sec,
-            self.session_number,  # эту штуку мы не обновляем, но она нам нужна для обновления другой штуки
-            self.durations_of_activities_in_current_session
-        )
-
     def on_select_combo_1(self, event=None):
         self.activity_in_timer1 = gui.combobox_1.current() + 1
         gui.time_1_label.config(
-            text=time.strftime(
-                "%H:%M:%S",
-                time.gmtime(self.durations_of_activities_in_current_session[self.activity_in_timer1])
-            )
+            text=sec_to_time(self.durations_of_activities_in_current_session[self.activity_in_timer1])
         )
         if self.running:
             if not self.running_1:
@@ -102,10 +85,7 @@ class ApplicationLogic:
     def on_select_combo_2(self, event=None):
         self.activity_in_timer2 = gui.combobox_2.current() + 1
         gui.time_2_label.config(
-            text=time.strftime(
-                "%H:%M:%S",
-                time.gmtime(self.durations_of_activities_in_current_session[self.activity_in_timer2])
-            )
+            text=sec_to_time(self.durations_of_activities_in_current_session[self.activity_in_timer2])
         )
         if self.running:
             if not self.running_2:
@@ -129,15 +109,13 @@ class ApplicationLogic:
         gui.time_1_label.config(text="00:00:00")
         gui.time_2_label.config(text="00:00:00")
         self.start_current_session_sec = time.time()
-        self.start_current_session = \
-            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.start_current_session_sec))
+        self.start_current_session = sec_to_datetime(self.start_current_session_sec)
         self.amount_of_subsessions = 0
         self.db.create_new_session(
             self.session_number,
             self.start_current_session,
             self.amount_of_activities
         )
-        # self.save_current_to_file()
 
     def terminate_session(self, retroactively=False):
         print("Завершаем сессию")
@@ -145,41 +123,16 @@ class ApplicationLogic:
             self.stop_timers()
         if not retroactively:
             self.end_current_session_sec = time.time()
-            self.end_current_session = \
-                time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.end_current_session_sec))
+        self.end_current_session = sec_to_datetime(self.end_current_session_sec)
 
         self.duration_current_session_sec = self.end_current_session_sec - self.start_current_session_sec
-        self.duration_current_session = \
-            time.strftime("%H:%M:%S", time.gmtime(self.duration_current_session_sec))
+        self.duration_current_session = sec_to_time(self.duration_current_session_sec)
 
-        # self.all_subsessions_by_session = self.db.get_subsessions_by_session(self.session_number)
-        # self.duration_total_act = {key: 0 for key in range(1, self.amount_of_activities + 1)}
-        # self.duration_total_act_sec = {key: 0 for key in range(1, self.amount_of_activities + 1)}
-        # for subsession in self.all_subsessions_by_session:
-        #     hours, minutes, seconds = map(int, subsession['subs_duration'].split(':'))
-        #     self.duration_total_act_sec[subsession['activity']] += 3600 * hours + 60 * minutes + seconds
-        # duration_total_acts_all_sec = 0
-        # for key in self.duration_total_act:
-        #     self.duration_total_act[key] = \
-        #         time.strftime("%H:%M:%S", time.gmtime(self.duration_total_act_sec[key]))
-        #     duration_total_acts_all_sec += self.duration_total_act_sec[key]
-        # duration_total_acts_all = \
-        #     time.strftime("%H:%M:%S", time.gmtime(duration_total_acts_all_sec))
         self.db.complete_new_session(
             self.end_current_session,
             self.duration_current_session,
             self.session_number
         )
-        # self.db.add_new_session(
-        #     self.session_number,
-        #     self.start_current_session,
-        #     self.end_current_session,
-        #     self.duration_current_session,
-        #     self.amount_of_subsessions,
-        #     duration_total_acts_all,
-        #     self.duration_total_act
-        # )
-        # self.save_current_to_file()
 
     def startterminate_session(self, retroactively=False):
         if self.is_in_session:
@@ -196,7 +149,6 @@ class ApplicationLogic:
         gui.stop_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
         gui.startterminate_session_button.config(text=BUTTON_SESSIONS_DICT[self.is_in_session])
         gui.start_text_label.config(text=START_TEXT_LABEL_DICT[self.is_in_session])
-        # self.save_current_to_file()
 
     def retroactively_termination(self):
         # создаём диалоговое окно
@@ -219,7 +171,7 @@ class ApplicationLogic:
         retroactively_termination_dialog.geometry(f"{width}x{height}+{x}+{y}")   # указываем размеры и центрируем
         retroactively_termination_dialog.title("Завершить сессию задним числом")
 
-        min_datetime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.end_subs_datetime_sec))
+        min_datetime = sec_to_datetime(self.end_subs_datetime_sec)
 
         # добавляем надпись
         label = tk.Label(
@@ -249,12 +201,20 @@ class ApplicationLogic:
         def on_ok():
             entered_datetime = entry.get()
             try:
-                self.end_current_session = \
-                    datetime.strptime(entered_datetime.strip(), '%Y-%m-%d %H:%M:%S')
+                #  - вот тут немного неясно, что за датавремя
+                #   upd: понял, зачем. Там далее по коду используется self.end_current_session
+                #        но я всё-таки решил переделать и не создавать тут self.end_current_session
+                #        да, потом в terminate_session придётся обратно из секунд в даты конвертировать 
+                #           лишний раз -- ну и пусть, не велика беда
+                #        зато код становится понятнее
+                #        и не надо дробить функцию datetime_to_sec ради этой копеешной оптимизации
+                # self.end_current_session = \
+                #     datetime.strptime(entered_datetime.strip(), '%Y-%m-%d %H:%M:%S')
+                self.end_current_session_sec = datetime_to_sec(entered_datetime.strip())
             except:
                 messagebox.showerror("Ошибка", "Вы ввели некорректные дату и время")
             else:
-                self.end_current_session_sec = self.end_current_session.timestamp()
+                # self.end_current_session_sec = self.end_current_session.timestamp()
                 if self.end_current_session_sec < int(self.end_subs_datetime_sec):
                   # int() сделали потому, что по факту целое число, а справа есть ещё дробная часть,
                   # которая в итоге не отображается - а нам в итоге только целая часть и нужна
@@ -322,17 +282,11 @@ class ApplicationLogic:
 
         if self.running_1:
             gui.time_1_label.config(
-                text=time.strftime(
-                    "%H:%M:%S",
-                    time.gmtime(self.durations_of_activities_in_current_session[self.activity_in_timer1])
-                )
+                text=sec_to_time(self.durations_of_activities_in_current_session[self.activity_in_timer1])
             )
         if self.running_2:
             gui.time_2_label.config(
-                text=time.strftime(
-                    "%H:%M:%S",
-                    time.gmtime(self.durations_of_activities_in_current_session[self.activity_in_timer2])
-                )
+                text=sec_to_time(self.durations_of_activities_in_current_session[self.activity_in_timer2])
             )
 
         self.timer_until_the_next_stop += 1
@@ -382,19 +336,18 @@ class ApplicationLogic:
             threading.Thread(target=self.update_time_starting, daemon=True).start()
         else:
             self.end_subs_datetime_sec = time.time()
-            self.subs_duration = self.end_subs_datetime_sec - self.start_subs_datetime_sec
+            self.subs_duration_sec = self.end_subs_datetime_sec - self.start_subs_datetime_sec
+            self.amount_of_subsessions += 1
             self.db.add_new_subsession(
                 self.session_number,
                 self.current_activity,
-                time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.start_subs_datetime_sec)),
-                time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.end_subs_datetime_sec)),
-                time.strftime("%H:%M:%S", time.gmtime(self.subs_duration)),
+                sec_to_datetime(self.start_subs_datetime_sec),
+                sec_to_datetime(self.end_subs_datetime_sec),
+                sec_to_time(self.subs_duration_sec),
                 self.amount_of_subsessions,
                 sec_to_time(self.duration_of_all_activities),
                 sec_to_time(self.durations_of_activities_in_current_session[self.current_activity])
             )
-            self.amount_of_subsessions += 1
-        # self.save_current_to_file()
         self.start_subs_datetime_sec = time.time()
         self.current_activity = self.activity_in_timer1
         gui.combobox_1.config(state='disabled')
@@ -419,19 +372,18 @@ class ApplicationLogic:
             threading.Thread(target=self.update_time_starting, daemon=True).start()
         else:
             self.end_subs_datetime_sec = time.time()
-            self.subs_duration = self.end_subs_datetime_sec - self.start_subs_datetime_sec
+            self.subs_duration_sec = self.end_subs_datetime_sec - self.start_subs_datetime_sec
+            self.amount_of_subsessions += 1
             self.db.add_new_subsession(
                 self.session_number,
                 self.current_activity,
-                time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.start_subs_datetime_sec)),
-                time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.end_subs_datetime_sec)),
-                time.strftime("%H:%M:%S", time.gmtime(self.subs_duration)),
+                sec_to_datetime(self.start_subs_datetime_sec),
+                sec_to_datetime(self.end_subs_datetime_sec),
+                sec_to_time(self.subs_duration_sec),
                 self.amount_of_subsessions,
                 sec_to_time(self.duration_of_all_activities),
                 sec_to_time(self.durations_of_activities_in_current_session[self.current_activity])
             )
-            self.amount_of_subsessions += 1
-        # self.save_current_to_file()
         self.start_subs_datetime_sec = time.time()
         self.current_activity = self.activity_in_timer2
         gui.combobox_1.config(state='readonly')
@@ -457,22 +409,21 @@ class ApplicationLogic:
         gui.start2_button.config(state='normal')
         gui.time_1_label.config(bg=gui.DEFAULT_WIN_COLOR)
         gui.time_2_label.config(bg=gui.DEFAULT_WIN_COLOR)
-        # self.save_current_to_file()
 
         self.end_subs_datetime_sec = time.time()
-        self.subs_duration = self.end_subs_datetime_sec - self.start_subs_datetime_sec
+        self.subs_duration_sec = self.end_subs_datetime_sec - self.start_subs_datetime_sec
+        self.amount_of_subsessions += 1
         self.db.add_new_subsession(
             self.session_number,
             self.current_activity,
-            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.start_subs_datetime_sec)),
-            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.end_subs_datetime_sec)),
-            time.strftime("%H:%M:%S", time.gmtime(self.subs_duration)),
+            sec_to_datetime(self.start_subs_datetime_sec),
+            sec_to_datetime(self.end_subs_datetime_sec),
+            sec_to_time(self.subs_duration_sec),
             self.amount_of_subsessions,
             sec_to_time(self.duration_of_all_activities),
             sec_to_time(self.durations_of_activities_in_current_session[self.current_activity])
         )
-        self.amount_of_subsessions += 1
-        print("Количество подсессий:", self.amount_of_subsessions)
+        # print("Количество подсессий:", self.amount_of_subsessions)
 
 
 if __name__ == "__main__":
