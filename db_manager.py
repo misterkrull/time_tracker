@@ -28,13 +28,10 @@ class DB:
         # сперва проверяем, есть ли такая; если нет - создаём и заполняем стартовыми данными
         # именно из-за заполнений стартовыми данными приходится такое городить вместо того,
         #   чтобы написать CREATE TABLE IF NOT EXISTS, как я сделал в следующих таблицах
-        self.cur.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='activities'"
-        )
+        self.cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='activities'")
         if not self.cur.fetchone():
             self.cur.execute(
-                "CREATE TABLE activities "
-                "("
+                "CREATE TABLE activities ("
                     "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                     "title TEXT, "
                     "parent_activity INTEGER"
@@ -43,15 +40,11 @@ class DB:
             values = ", ".join(
                 f"(NULL, '{activity}', 0)" for activity in DEFAULT_ACTIVITIES
             )
-            self.cur.execute(
-                f"INSERT INTO activities VALUES {values};"
-            )
+            self.cur.execute(f"INSERT INTO activities VALUES {values}")
 
         # создаём таблицу app_state
         # тоже приходится городить, т.к. надо заполнить дефолтными значениями
-        self.cur.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='app_state'"
-        )
+        self.cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='app_state'")
         if not self.cur.fetchone():
             self.cur.execute(
                 "CREATE TABLE app_state (" + \
@@ -77,13 +70,12 @@ class DB:
                 ", ".join(
                     f"sess_duration_total_act{i} TIME" for i in range(1, len(DEFAULT_ACTIVITIES) + 1)
                 ) + \
-            ");"
+            ")"
         )        
 
         # создаём таблицу subsessions
         self.cur.execute(
-            "CREATE TABLE IF NOT EXISTS subsessions "
-            "("
+            "CREATE TABLE IF NOT EXISTS subsessions ("
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                 "session_number INTEGER, "
                 "activity INTEGER, "
@@ -128,7 +120,8 @@ class DB:
         #TODO сделать проверку соответствия session_number очереденому primary key: видал, что они расходились
         self.cur.execute(
             "UPDATE sessions SET " + \
-                "amount_of_subsessions = ?, sess_duration_total_acts_all = ?, " + \
+                "amount_of_subsessions = ?, " + \
+                "sess_duration_total_acts_all = ?, " + \
                 f"sess_duration_total_act{current_activity} = ? " + \
             "WHERE id = ?",
             (
@@ -159,9 +152,7 @@ class DB:
         
         # TODO переделать: сразу сделать SQL-запрос. который считает
     def get_amount_of_subsessions(self, session_number: int) -> int:
-        self.cur.execute(
-            "SELECT * FROM subsessions WHERE session_number=?", (session_number,)
-        )
+        self.cur.execute("SELECT * FROM subsessions WHERE session_number=?", (session_number,))
         rows = self.cur.fetchall()
         return len(rows)
         
@@ -174,14 +165,14 @@ class DB:
     # но пока она использовалсь, то Лёша советовал её переназвать (см. в мой блокнотик)
     # думаю, пока функцию оставлю, но если она потребуется, то может будет переделана, 
     #   а там и глядишь ещё раз название переделывать придётся :) так что пока оставлю так
-    def get_subsessions_by_session(self, session_number: int) -> list[dict[str, Any]]:
-        self.cur.execute(
-            "SELECT activity, subs_duration FROM subsessions WHERE session_number=?",
-            (session_number,)
-        )
-        rows_in_tuples = self.cur.fetchall()
-        rows_in_dicts = [{'activity': a, 'subs_duration': s_d} for (a, s_d) in rows_in_tuples]
-        return rows_in_dicts
+    # def get_subsessions_by_session(self, session_number: int) -> list[dict[str, Any]]:
+    #     self.cur.execute(
+    #         "SELECT activity, subs_duration FROM subsessions WHERE session_number=?",
+    #         (session_number,)
+    #     )
+    #     rows_in_tuples = self.cur.fetchall()
+    #     rows_in_dicts = [{'activity': a, 'subs_duration': s_d} for (a, s_d) in rows_in_tuples]
+    #     return rows_in_dicts
         
     def get_datetime_of_last_subsession(self) -> str:
         self.cur.execute("SELECT end_subs_datetime FROM subsessions ORDER BY id DESC LIMIT 1")
@@ -199,9 +190,9 @@ class DB:
         return self.cur.fetchone()
 
     def load_app_state(self) -> dict[int, Any]:
-        self.cur.execute("SELECT * FROM app_state;")
-        tupl = self.cur.fetchall()[0]
-        return dict(zip(DEFAULT_APP_STATE.keys(), tupl))
+        self.cur.execute("SELECT * FROM app_state")
+        res: tuple = self.cur.fetchall()[0]
+        return dict(zip(DEFAULT_APP_STATE.keys(), res))
 
     def save_app_state(
         self,
