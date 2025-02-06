@@ -14,8 +14,8 @@ DEFAULT_ACTIVITIES = [
     "Помощь маме"
 ]
 DEFAULT_APP_STATE = {
-    "activity_in_timer1": 1,
-    "activity_in_timer2": 2
+    "activity_in_timer1": ("INTEGER", 1),
+    "activity_in_timer2": ("INTEGER", 2)
 }
 
 
@@ -54,17 +54,15 @@ class DB:
         )
         if not self.cur.fetchone():
             self.cur.execute(
-                "CREATE TABLE app_state "
-                "("
-                    "key TEXT PRIMARY KEY, "
-                    "word TEXT"
+                "CREATE TABLE app_state (" + \
+                    ", ".join(f"{key} {value[0]}" for key, value in DEFAULT_APP_STATE.items()) + \
                 ")"
             )
-            values = ", ".join(
-                f"('{key}', '{word}')" for (key, word) in DEFAULT_APP_STATE.items()
-            )
             self.cur.execute(
-                f"INSERT INTO app_state VALUES {values};"
+                "INSERT INTO app_state VALUES (" + \
+                    ", ".join(["?"] * len(DEFAULT_APP_STATE)) + \
+                ")",
+                [value[1] for value in DEFAULT_APP_STATE.values()]
             )
 
         # создаём таблицу sessions
@@ -201,12 +199,9 @@ class DB:
         return self.cur.fetchone()
 
     def load_app_state(self) -> dict[int, Any]:
-        result = {}
-        self.cur.execute("SELECT key, word FROM app_state;")
-        app_state_dict = dict(self.cur.fetchall())
-        result['activity_in_timer1'] = int(app_state_dict['activity_in_timer1'])
-        result['activity_in_timer2'] = int(app_state_dict['activity_in_timer2'])
-        return result
+        self.cur.execute("SELECT * FROM app_state;")
+        tupl = self.cur.fetchall()[0]
+        return dict(zip(DEFAULT_APP_STATE.keys(), tupl))
 
     def save_app_state(
         self,
@@ -214,9 +209,8 @@ class DB:
         activity_in_timer2: int
     ) -> None:
         self.cur.execute(
-            "UPDATE app_state SET word = CASE "
-                f"WHEN key = 'activity_in_timer1' THEN {activity_in_timer1} "
-                f"WHEN key = 'activity_in_timer2' THEN {activity_in_timer2} "
-            "END;"
+            "UPDATE app_state SET " + \
+                ", ".join(f"{str(key)} = ?" for key in DEFAULT_APP_STATE.keys()),
+            (activity_in_timer1, activity_in_timer2)
         )
         self.conn.commit()
