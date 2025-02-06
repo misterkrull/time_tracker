@@ -22,6 +22,8 @@ class ApplicationLogic:
         last_session: tuple | None = self.db.get_last_session()
         if last_session == None:  # случай, если у нас ещё не было ни одной сессии (т.е. новая БД)
             # TODO может быть убрать отсюда те переменные, которые нам будут не нужны?
+            # однако если убрать, то эти переменные будут объявлены в другом месте
+            #   их там в другом месте надо будет аннотировать? вот вопрос...
             self.is_in_session: bool = False                    # ЭТО НУЖНО
             self.session_number: int = 0                        # ЭТО НУЖНО
             self.start_current_session: str = "00:00:00"        # это не нужно
@@ -32,7 +34,7 @@ class ApplicationLogic:
             #   т.е. почему в одном случае одно, а в другом -- другое
             self.durations_of_activities_in_current_session: dict[int, int] = {
                 i + 1: 0 for i in range(self.amount_of_activities)
-            }            
+            }  # у нас
         else:
             self.is_in_session: bool = ( last_session[2] == "---" )
             self.session_number: int = last_session[0]
@@ -69,15 +71,14 @@ class ApplicationLogic:
         self.running_2 = False
 
     def on_select_combo_1(self, event=None):
-        self.activity_in_timer1 = gui.combobox_1.current() + 1
+        self.activity_in_timer1 = gui.combobox_1.current() + 1  # слева отсчёт с 1, справа -- с 0; 
         gui.time_1_label.config(
             text=sec_to_time(self.durations_of_activities_in_current_session[self.activity_in_timer1])
         )
         if self.running:
-            if not self.running_1:
-                if self.activity_in_timer1 == self.activity_in_timer2:
-                    self.running_1 = True
-                    gui.start1_button.config(state='disabled')
+            if self.activity_in_timer1 == self.activity_in_timer2:
+                self.running_1 = True
+                gui.start1_button.config(state='disabled')
             else:
                 self.running_1 = False
                 gui.start1_button.config(state='normal')
@@ -88,10 +89,9 @@ class ApplicationLogic:
             text=sec_to_time(self.durations_of_activities_in_current_session[self.activity_in_timer2])
         )
         if self.running:
-            if not self.running_2:
-                if self.activity_in_timer2 == self.activity_in_timer1:
-                    self.running_2 = True
-                    gui.start2_button.config(state='disabled')
+            if self.activity_in_timer2 == self.activity_in_timer1:
+                self.running_2 = True
+                gui.start2_button.config(state='disabled')
             else:
                 self.running_2 = False
                 gui.start2_button.config(state='normal')
