@@ -92,17 +92,19 @@ class DB:
 
     def complete_new_session(
         self,
+        session_number: int,
         end_sess_datetime: str,
         sess_duration_total: str,
-        session_number: int
     ) -> None:
         self.cur.execute(
             "UPDATE sessions SET end_sess_datetime = ?, sess_duration_total = ? WHERE id = ?",
             (end_sess_datetime, sess_duration_total, session_number)
         )
         self.conn.commit()
-            
-    def add_new_subsession(
+        
+    # да, здесь нужна двойная функция: чтобы сразу два запроса к БД одним махом пульнуть
+    # экономия времени существенная! замерял!
+    def add_new_subsession_and_update_current_session(
         self, 
         session_number: int, 
         current_activity: int, 
@@ -115,7 +117,13 @@ class DB:
     ) -> None:
         self.cur.execute(
             "INSERT INTO subsessions VALUES (NULL, ?, ?, ?, ?, ?)",
-            (session_number, current_activity, start_subs_datetime, end_subs_datetime, subs_duration)
+            (
+                session_number,
+                current_activity,
+                start_subs_datetime,
+                end_subs_datetime,
+                subs_duration
+            )
         )
         #TODO сделать проверку соответствия session_number очереденому primary key: видал, что они расходились
         self.cur.execute(
@@ -140,7 +148,7 @@ class DB:
         self,
         session_number: int,  # да, вот его наверное как-то надо использовать, чтобы проверить соответствие
         start_current_session: str,
-        amount_of_activities: int
+        amount_of_activities: int  # TODO наверное надо этот параметр из класса DB получать, так логичнее
     ) -> None:
         sql_query = \
             "INSERT INTO sessions VALUES (" + \

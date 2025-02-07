@@ -52,7 +52,7 @@ class ApplicationLogic:
         self.duration_of_all_activities: int = sum(self.durations_of_activities_in_current_session.values())
 
         self.amount_of_subsessions: int = self.db.get_amount_of_subsessions(self.session_number)
-        print("Количество подсессий:", self.amount_of_subsessions)
+        # print("Количество подсессий:", self.amount_of_subsessions)
         if self.amount_of_subsessions > 0:
             self.end_subs_datetime_sec: int = datetime_to_sec(self.db.get_datetime_of_last_subsession())
         # это нужно для работы кнопки "Завершить сессию задним числом"
@@ -66,48 +66,44 @@ class ApplicationLogic:
         self.activity_in_timer1: int = app_state['activity_in_timer1']
         self.activity_in_timer2: int = app_state['activity_in_timer2']
 
-        self.running = False
-        self.running_1 = False
-        self.running_2 = False
+        self.running_1: bool = False
+        self.running_2: bool = False
 
     def on_select_combo_1(self, event=None):
         self.activity_in_timer1 = gui.combobox_1.current() + 1  # слева отсчёт с 1, справа -- с 0; 
         gui.time_1_label.config(
             text=sec_to_time(self.durations_of_activities_in_current_session[self.activity_in_timer1])
         )
-        if self.running:
+        if self.running_1 or self.running_2:
             if self.activity_in_timer1 == self.activity_in_timer2:
                 self.running_1 = True
-                gui.start1_button.config(state='disabled')
+                gui.start1_button.config(state=BUTTON_PARAM_STATE_DICT[False])
             else:
                 self.running_1 = False
-                gui.start1_button.config(state='normal')
+                gui.start1_button.config(state=BUTTON_PARAM_STATE_DICT[True])
 
     def on_select_combo_2(self, event=None):
         self.activity_in_timer2 = gui.combobox_2.current() + 1
         gui.time_2_label.config(
             text=sec_to_time(self.durations_of_activities_in_current_session[self.activity_in_timer2])
         )
-        if self.running:
+        if self.running_1 or self.running_2:
             if self.activity_in_timer2 == self.activity_in_timer1:
                 self.running_2 = True
-                gui.start2_button.config(state='disabled')
+                gui.start2_button.config(state=BUTTON_PARAM_STATE_DICT[False])
             else:
                 self.running_2 = False
-                gui.start2_button.config(state='normal')
+                gui.start2_button.config(state=BUTTON_PARAM_STATE_DICT[True])
 
     def start_session(self):
-        print("Начинаем новую сессию...")
-        self.running = False
+        # print("Начинаем новую сессию...")
+        self.is_in_session = True
         self.running_1 = False
         self.running_2 = False
         self.session_number += 1
-        gui.current_session_value_label.config(text=self.session_number)
         for key in self.durations_of_activities_in_current_session:
             self.durations_of_activities_in_current_session[key] = 0
         self.duration_of_all_activities = 0
-        gui.time_1_label.config(text="00:00:00")
-        gui.time_2_label.config(text="00:00:00")
         self.start_current_session_sec = time.time()
         self.start_current_session = sec_to_datetime(self.start_current_session_sec)
         self.amount_of_subsessions = 0
@@ -116,41 +112,99 @@ class ApplicationLogic:
             self.start_current_session,
             self.amount_of_activities
         )
+        
+        gui.start_sess_datetime_label.config(text=self.start_current_session)
+        gui.current_session_value_label.config(text=self.session_number)
+        gui.time_1_label.config(text="00:00:00")
+        gui.time_2_label.config(text="00:00:00")
 
     def terminate_session(self, retroactively=False):
-        print("Завершаем сессию")
-        if self.running:
+        # print("Завершаем сессию")
+        self.is_in_session = False
+        if self.running_1 or self.running_2:
             self.stop_timers()
+
         if not retroactively:
             self.end_current_session_sec = time.time()
         self.end_current_session = sec_to_datetime(self.end_current_session_sec)
-
         self.duration_current_session_sec = self.end_current_session_sec - self.start_current_session_sec
         self.duration_current_session = sec_to_time(self.duration_current_session_sec)
-
         self.db.complete_new_session(
+            self.session_number,
             self.end_current_session,
-            self.duration_current_session,
-            self.session_number
+            self.duration_current_session
         )
+            
+        gui.start_sess_datetime_label.config(text=self.duration_current_session)
 
     def startterminate_session(self, retroactively=False):
         if self.is_in_session:
             self.terminate_session(retroactively)
-            self.is_in_session = False
-            gui.start_sess_datetime_label.config(text=self.duration_current_session)
         else:
             self.start_session()
-            self.is_in_session = True
-            gui.start_sess_datetime_label.config(text=self.start_current_session)
+
+        # вот это всё безобразие может быть надо по обеим функциям распихать?
+        # тогда эти строчки повторяется по два раза, однако возможно будет нагляднее
+        # однако если оставлять так, как есть, то может быть смену флага is_in_session нужно будет
+        #   из обеих функций вытащить сюда, чтобы было наглядно видно, что флаг этот меняется, вообще-то
+        gui.start_text_label.config(text=START_TEXT_LABEL_DICT[self.is_in_session])
+        gui.startterminate_session_button.config(text=BUTTON_SESSIONS_DICT[self.is_in_session])
+
         gui.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[False])
         gui.start1_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
         gui.start2_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
         gui.stop_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
-        gui.startterminate_session_button.config(text=BUTTON_SESSIONS_DICT[self.is_in_session])
-        gui.start_text_label.config(text=START_TEXT_LABEL_DICT[self.is_in_session])
 
     def retroactively_termination(self):
+        def on_ok():
+            entered_datetime = entry.get()
+            try:
+                #  - вот тут немного неясно, что за датавремя
+                #   upd: понял, зачем. Там далее по коду используется self.end_current_session
+                #        но я всё-таки решил переделать и не создавать тут self.end_current_session
+                #        да, потом в terminate_session придётся обратно из секунд в даты конвертировать 
+                #           лишний раз -- ну и пусть, не велика беда
+                #        зато код становится понятнее
+                #        и не надо дробить функцию datetime_to_sec ради этой копеешной оптимизации
+                # self.end_current_session = \
+                #     datetime.strptime(entered_datetime.strip(), '%Y-%m-%d %H:%M:%S')
+                self.end_current_session_sec = datetime_to_sec(entered_datetime.strip())
+            except:
+                messagebox.showerror("Ошибка", "Вы ввели некорректные дату и время")
+            else:
+                # self.end_current_session_sec = self.end_current_session.timestamp()
+                if self.end_current_session_sec < int(self.end_subs_datetime_sec):
+                  # int() сделали потому, что слева по факту целое число, а справа есть ещё дробная часть,
+                  # которая в итоге не отображается - а нам в итоге только целая часть и нужна
+                  # в противном случае поведение программы становится немного некорректным
+                    messagebox.showerror(
+                        "Ошибка",
+                        "Завершение сессии должно быть позже окончания последней подсессии!"
+                    )
+                    return
+                if self.end_current_session_sec >= time.time():
+                    messagebox.showerror(
+                        "Ошибка",
+                        "Завершение сессии должно быть задним числом, т.е. в прошлом, а не в будущем!"
+                    )
+                    return
+                retroactively_termination_dialog.destroy()
+                self.startterminate_session(retroactively=True)
+
+        def on_cancel(event=None):
+            retroactively_termination_dialog.destroy()
+
+        def press_enter(event=None):
+            if event.widget == entry:  # Если фокус на текстовом поле, то нам нужно действие кнопки "ОК"
+                ok_button.config(relief=tk.SUNKEN)  # Имитируем нажатие кнопки "ОК"
+                ok_button.after(100, lambda: ok_button.config(relief=tk.RAISED))  # Имитируем отпускание кнопки "ОК"
+                ok_button.invoke()  # Вызываем действие кнопки "ОК"
+            else:  # Если фокус не на текстовом поле, т.е. на кнопке "ОК" или на кнопке "Отмена"
+                event.widget.config(relief=tk.SUNKEN)  # Имитируем нажатие кнопки
+                event.widget.after(100, lambda: event.widget.config(relief=tk.RAISED))  # Имитируем отпускание кнопки
+                event.widget.invoke()  # Вызываем действие кнопки, на которой фокус
+
+
         # создаём диалоговое окно
         retroactively_termination_dialog = tk.Toplevel(gui.root)
 
@@ -171,14 +225,12 @@ class ApplicationLogic:
         retroactively_termination_dialog.geometry(f"{width}x{height}+{x}+{y}")   # указываем размеры и центрируем
         retroactively_termination_dialog.title("Завершить сессию задним числом")
 
-        min_datetime = sec_to_datetime(self.end_subs_datetime_sec)
-
         # добавляем надпись
         label = tk.Label(
             retroactively_termination_dialog,
             text='Введите "задние" дату и время (в формате YYYY-MM-DD HH:MM:SS)\n'
                  'в промежутке между окончанием последней подсессии\n'
-                 f'({min_datetime}) и текущим временем:',
+                 f'({sec_to_datetime(self.end_subs_datetime_sec)}) и текущим временем:',
             font=("Segoe UI", 10)
         )
         label.pack(pady=2)
@@ -192,59 +244,11 @@ class ApplicationLogic:
         )
         entry.pack(pady=3)
         entry.focus_set()
-        entry.insert(tk.END, min_datetime)
+        entry.insert(tk.END, sec_to_datetime(self.end_subs_datetime_sec))
 
         # фрейм для кнопок
         button_frame = tk.Frame(retroactively_termination_dialog)
         button_frame.pack(pady=7)
-
-        def on_ok():
-            entered_datetime = entry.get()
-            try:
-                #  - вот тут немного неясно, что за датавремя
-                #   upd: понял, зачем. Там далее по коду используется self.end_current_session
-                #        но я всё-таки решил переделать и не создавать тут self.end_current_session
-                #        да, потом в terminate_session придётся обратно из секунд в даты конвертировать 
-                #           лишний раз -- ну и пусть, не велика беда
-                #        зато код становится понятнее
-                #        и не надо дробить функцию datetime_to_sec ради этой копеешной оптимизации
-                # self.end_current_session = \
-                #     datetime.strptime(entered_datetime.strip(), '%Y-%m-%d %H:%M:%S')
-                self.end_current_session_sec = datetime_to_sec(entered_datetime.strip())
-            except:
-                messagebox.showerror("Ошибка", "Вы ввели некорректные дату и время")
-            else:
-                # self.end_current_session_sec = self.end_current_session.timestamp()
-                if self.end_current_session_sec < int(self.end_subs_datetime_sec):
-                  # int() сделали потому, что по факту целое число, а справа есть ещё дробная часть,
-                  # которая в итоге не отображается - а нам в итоге только целая часть и нужна
-                  # в противном случае поведение программы становится немного некорректным
-                    messagebox.showerror(
-                        "Ошибка",
-                        "Завершение сессии должно быть позже окончания последней подсессии!"
-                    )
-                    return
-                if self.end_current_session_sec >= time.time():
-                    messagebox.showerror(
-                        "Ошибка",
-                        "Завершение сессии должно быть задним числом, т.е. в прошлом, а не в будущем!"
-                    )
-                    return
-                retroactively_termination_dialog.destroy()
-                self.startterminate_session(retroactively=True)
-
-        def on_cancel(event=None):
-            retroactively_termination_dialog.destroy()
-
-        def on_enter(event=None):
-            if event.widget == entry:  # Если фокус на текстовом поле
-                ok_button.config(relief=tk.SUNKEN)  # Меняем стиль кнопки на нажатую
-                ok_button.after(100, lambda: ok_button.config(relief=tk.RAISED))  # Возвращаем стиль через 100 мс
-                on_ok()
-            else:
-                event.widget.config(relief=tk.SUNKEN)  # Меняем стиль кнопки на нажатую
-                event.widget.after(100, lambda: event.widget.config(relief=tk.RAISED))  # Возвращаем стиль через 100 мс
-                event.widget.invoke()  # Вызываем действие кнопки, на которой фокус
 
         ok_button = tk.Button(
             button_frame,
@@ -264,22 +268,17 @@ class ApplicationLogic:
         )
         cancel_button.pack(side=tk.LEFT, padx=2, pady=0)
 
-        retroactively_termination_dialog.bind('<Return>', on_enter)
+        retroactively_termination_dialog.bind('<Return>', press_enter)
         retroactively_termination_dialog.bind('<Escape>', on_cancel)
-
+            
     def update_time(self):
         """
-Эта функция вызывает саму себя и работает до тех пор, пока self.running==True
+Эта функция вызывает саму себя и работает до тех пор, пока (self.running_1 or self.running_2) == True
         """
-        if not self.running:
+        if not (self.running_1 or self.running_2):
             return
-
-        if self.working_timer == 1:
-            self.durations_of_activities_in_current_session[self.activity_in_timer1] += 1
-        if self.working_timer == 2:
-            self.durations_of_activities_in_current_session[self.activity_in_timer2] += 1
+        self.durations_of_activities_in_current_session[self.current_activity] += 1
         self.duration_of_all_activities += 1
-
         if self.running_1:
             gui.time_1_label.config(
                 text=sec_to_time(self.durations_of_activities_in_current_session[self.activity_in_timer1])
@@ -324,83 +323,63 @@ class ApplicationLogic:
         """
 Запускается при нажатии на кнопку "Старт 1"
         """
-        if self.running and self.running_1:
+        if self.running_1:
             return
         self.running_1 = True
-        self.running_2 = False
-        self.working_timer = 1
-        gui.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[False])
-        if not self.running:
-            self.running = True
-            self.on_select_combo_2()
+        if not self.running_2:          # если другой таймер стоял (т.е. оба таймера стояли; старт с "нуля")
+            self.current_activity: int = self.activity_in_timer1
+            if self.activity_in_timer2 == self.activity_in_timer1:
+                self.running_2 = True
+                gui.start2_button.config(state=BUTTON_PARAM_STATE_DICT[False])
             threading.Thread(target=self.update_time_starting, daemon=True).start()
-        else:
-            self.end_subs_datetime_sec = time.time()
-            self.subs_duration_sec = self.end_subs_datetime_sec - self.start_subs_datetime_sec
-            self.amount_of_subsessions += 1
-            self.db.add_new_subsession(
-                self.session_number,
-                self.current_activity,
-                sec_to_datetime(self.start_subs_datetime_sec),
-                sec_to_datetime(self.end_subs_datetime_sec),
-                sec_to_time(self.subs_duration_sec),
-                self.amount_of_subsessions,
-                sec_to_time(self.duration_of_all_activities),
-                sec_to_time(self.durations_of_activities_in_current_session[self.current_activity])
-            )
+        else:                           # если другой таймер шёл (т.е. происходит переключение таймера)
+            self.ending_subsession()
+            self.running_2 = False
+            self.current_activity: int = self.activity_in_timer1
         self.start_subs_datetime_sec = time.time()
-        self.current_activity = self.activity_in_timer1
+                
         gui.combobox_1.config(state='disabled')
         gui.combobox_2.config(state='readonly')
         gui.time_1_label.config(bg='green')
         gui.time_2_label.config(bg=gui.DEFAULT_WIN_COLOR)
+        gui.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[False])
 
     @time_decorator
     def start_timer_2(self):
         """
 Запускается при нажатии на кнопку "Старт 2"
         """
-        if self.running and self.running_2:
-            return
-        self.running_1 = False
+        if self.running_2:
+            return        
         self.running_2 = True
-        self.working_timer = 2
-        gui.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[False])
-        if not self.running:
-            self.running = True
-            self.on_select_combo_1()
+        if not self.running_1:          # если другой таймер стоял (т.е. оба таймера стояли; старт с "нуля")
+            self.current_activity: int = self.activity_in_timer2
+            if self.activity_in_timer1 == self.activity_in_timer2:
+                self.running_1 = True
+                gui.start1_button.config(state=BUTTON_PARAM_STATE_DICT[False])
             threading.Thread(target=self.update_time_starting, daemon=True).start()
-        else:
-            self.end_subs_datetime_sec = time.time()
-            self.subs_duration_sec = self.end_subs_datetime_sec - self.start_subs_datetime_sec
-            self.amount_of_subsessions += 1
-            self.db.add_new_subsession(
-                self.session_number,
-                self.current_activity,
-                sec_to_datetime(self.start_subs_datetime_sec),
-                sec_to_datetime(self.end_subs_datetime_sec),
-                sec_to_time(self.subs_duration_sec),
-                self.amount_of_subsessions,
-                sec_to_time(self.duration_of_all_activities),
-                sec_to_time(self.durations_of_activities_in_current_session[self.current_activity])
-            )
+        else:                           # если другой таймер шёл (т.е. происходит переключение таймера)
+            self.ending_subsession()
+            self.running_1 = False
+            self.current_activity: int = self.activity_in_timer2
         self.start_subs_datetime_sec = time.time()
-        self.current_activity = self.activity_in_timer2
+                
         gui.combobox_1.config(state='readonly')
         gui.combobox_2.config(state='disabled')
         gui.time_1_label.config(bg=gui.DEFAULT_WIN_COLOR)
         gui.time_2_label.config(bg='green')
+        gui.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[False])
 
     @time_decorator
     def stop_timers(self):
         """
 Запускается при нажатии на кнопку "Стоп"
         """
-        if not self.running:
+        if not (self.running_1 or self.running_2):
             return
-        self.running = False
         self.running_1 = False
         self.running_2 = False
+        self.ending_subsession()
 
         gui.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[True])
         gui.combobox_1.config(state='readonly')
@@ -410,10 +389,14 @@ class ApplicationLogic:
         gui.time_1_label.config(bg=gui.DEFAULT_WIN_COLOR)
         gui.time_2_label.config(bg=gui.DEFAULT_WIN_COLOR)
 
+    def ending_subsession(self):
         self.end_subs_datetime_sec = time.time()
         self.subs_duration_sec = self.end_subs_datetime_sec - self.start_subs_datetime_sec
         self.amount_of_subsessions += 1
-        self.db.add_new_subsession(
+        
+        # да, здесь нужна двойная функция: чтобы сразу два запроса к БД одним махом пульнуть
+        # экономия времени существенная! замерял!
+        self.db.add_new_subsession_and_update_current_session(
             self.session_number,
             self.current_activity,
             sec_to_datetime(self.start_subs_datetime_sec),
@@ -423,7 +406,6 @@ class ApplicationLogic:
             sec_to_time(self.duration_of_all_activities),
             sec_to_time(self.durations_of_activities_in_current_session[self.current_activity])
         )
-        # print("Количество подсессий:", self.amount_of_subsessions)
 
 
 if __name__ == "__main__":
