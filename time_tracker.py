@@ -150,126 +150,10 @@ class ApplicationLogic:
         gui.start_text_label.config(text=START_TEXT_LABEL_DICT[self.is_in_session])
         gui.startterminate_session_button.config(text=BUTTON_SESSIONS_DICT[self.is_in_session])
 
-        gui.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[False])
+        gui.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[False])
         gui.start1_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
         gui.start2_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
         gui.stop_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
-
-    def retroactively_termination(self):
-        def on_ok():
-            entered_datetime = entry.get()
-            try:
-                #  - вот тут немного неясно, что за датавремя
-                #   upd: понял, зачем. Там далее по коду используется self.end_current_session
-                #        но я всё-таки решил переделать и не создавать тут self.end_current_session
-                #        да, потом в terminate_session придётся обратно из секунд в даты конвертировать 
-                #           лишний раз -- ну и пусть, не велика беда
-                #        зато код становится понятнее
-                #        и не надо дробить функцию datetime_to_sec ради этой копеешной оптимизации
-                # self.end_current_session = \
-                #     datetime.strptime(entered_datetime.strip(), '%Y-%m-%d %H:%M:%S')
-                self.end_current_session_sec = datetime_to_sec(entered_datetime.strip())
-            except:
-                messagebox.showerror("Ошибка", "Вы ввели некорректные дату и время")
-            else:
-                # self.end_current_session_sec = self.end_current_session.timestamp()
-                if self.end_current_session_sec < int(self.end_subs_datetime_sec):
-                  # int() сделали потому, что слева по факту целое число, а справа есть ещё дробная часть,
-                  # которая в итоге не отображается - а нам в итоге только целая часть и нужна
-                  # в противном случае поведение программы становится немного некорректным
-                    messagebox.showerror(
-                        "Ошибка",
-                        "Завершение сессии должно быть позже окончания последней подсессии!"
-                    )
-                    return
-                if self.end_current_session_sec >= time.time():
-                    messagebox.showerror(
-                        "Ошибка",
-                        "Завершение сессии должно быть задним числом, т.е. в прошлом, а не в будущем!"
-                    )
-                    return
-                retroactively_termination_dialog.destroy()
-                self.startterminate_session(retroactively=True)
-
-        def on_cancel(event=None):
-            retroactively_termination_dialog.destroy()
-
-        def press_enter(event=None):
-            if event.widget == entry:  # Если фокус на текстовом поле, то нам нужно действие кнопки "ОК"
-                ok_button.config(relief=tk.SUNKEN)  # Имитируем нажатие кнопки "ОК"
-                ok_button.after(100, lambda: ok_button.config(relief=tk.RAISED))  # Имитируем отпускание кнопки "ОК"
-                ok_button.invoke()  # Вызываем действие кнопки "ОК"
-            else:  # Если фокус не на текстовом поле, т.е. на кнопке "ОК" или на кнопке "Отмена"
-                event.widget.config(relief=tk.SUNKEN)  # Имитируем нажатие кнопки
-                event.widget.after(100, lambda: event.widget.config(relief=tk.RAISED))  # Имитируем отпускание кнопки
-                event.widget.invoke()  # Вызываем действие кнопки, на которой фокус
-
-
-        # создаём диалоговое окно
-        retroactively_termination_dialog = tk.Toplevel(gui.root)
-
-        # указываем, что наше диалоговое окно -- временное по отношению к родительскому окну
-        # в т.ч. это убирает кнопки Свернуть/Развернуть, оставляя только крестик в углу
-        retroactively_termination_dialog.transient(gui.root)
-
-        retroactively_termination_dialog.grab_set()   # блокируем кнопки родительского окна
-
-        # задаём размеры окна
-        width = 450
-        height = 140
-
-        # Получаем размеры основного окна - нужно для центрирования нашего окна
-        x = gui.root.winfo_x() + (gui.root.winfo_width() // 2) - width // 2
-        y = gui.root.winfo_y() + (gui.root.winfo_height() // 2) - height // 2
-
-        retroactively_termination_dialog.geometry(f"{width}x{height}+{x}+{y}")   # указываем размеры и центрируем
-        retroactively_termination_dialog.title("Завершить сессию задним числом")
-
-        # добавляем надпись
-        label = tk.Label(
-            retroactively_termination_dialog,
-            text='Введите "задние" дату и время (в формате YYYY-MM-DD HH:MM:SS)\n'
-                 'в промежутке между окончанием последней подсессии\n'
-                 f'({sec_to_datetime(self.end_subs_datetime_sec)}) и текущим временем:',
-            font=("Segoe UI", 10)
-        )
-        label.pack(pady=2)
-
-        # добавляем поле для ввода
-        entry = tk.Entry(
-            retroactively_termination_dialog,
-            width=25,
-            font=("Segoe UI", 12),
-            justify='center'
-        )
-        entry.pack(pady=3)
-        entry.focus_set()
-        entry.insert(tk.END, sec_to_datetime(self.end_subs_datetime_sec))
-
-        # фрейм для кнопок
-        button_frame = tk.Frame(retroactively_termination_dialog)
-        button_frame.pack(pady=7)
-
-        ok_button = tk.Button(
-            button_frame,
-            text="ОК",
-            command=on_ok,
-            width=12,
-            font=("Segoe UI", 10)
-        )
-        ok_button.pack(side=tk.LEFT, padx=10, pady=0)
-
-        cancel_button = tk.Button(
-            button_frame,
-            text="Отмена",
-            command=on_cancel,
-            width=12,
-            font=("Segoe UI", 10)
-        )
-        cancel_button.pack(side=tk.LEFT, padx=2, pady=0)
-
-        retroactively_termination_dialog.bind('<Return>', press_enter)
-        retroactively_termination_dialog.bind('<Escape>', on_cancel)
             
     def update_time(self):
         """
@@ -342,7 +226,7 @@ class ApplicationLogic:
         gui.combobox_2.config(state='readonly')
         gui.time_1_label.config(bg='green')
         gui.time_2_label.config(bg=gui.DEFAULT_WIN_COLOR)
-        gui.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[False])
+        gui.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[False])
 
     @time_decorator
     def start_timer_2(self):
@@ -368,7 +252,7 @@ class ApplicationLogic:
         gui.combobox_2.config(state='disabled')
         gui.time_1_label.config(bg=gui.DEFAULT_WIN_COLOR)
         gui.time_2_label.config(bg='green')
-        gui.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[False])
+        gui.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[False])
 
     @time_decorator
     def stop_timers(self):
@@ -381,7 +265,7 @@ class ApplicationLogic:
         self.running_2 = False
         self.ending_subsession()
 
-        gui.retroactively_termination_button.config(state=BUTTON_PARAM_STATE_DICT[True])
+        gui.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[True])
         gui.combobox_1.config(state='readonly')
         gui.combobox_2.config(state='readonly')
         gui.start1_button.config(state='normal')

@@ -5,6 +5,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from common_functions import time_decorator, sec_to_time, time_to_sec, sec_to_datetime, datetime_to_sec
+from retroactively_termination_of_session import RetroactivelyTerminationOfSession
 
 BUTTON_PARAM_STATE_DICT = {True: "normal", False: "disabled"}
 BUTTON_SESSIONS_DICT = {True: "Завершить сессию", False: "Новая сессия"}
@@ -13,9 +14,10 @@ START_TEXT_LABEL_DICT = {True: "Началась: ", False: "Длилась: "}
 class GuiLayer:
     def __init__(self, root, app):
         self.root = root
+        self.app = app
         self.root.title("Мой трекер")
         self.root.geometry("678x250")  # Устанавливаем размер окна
-        self.root.protocol("WM_DELETE_WINDOW", lambda: self.on_closing(app))  # определяем метод закрытия окна
+        self.root.protocol("WM_DELETE_WINDOW", self._on_closing)  # определяем метод закрытия окна
         self.DEFAULT_WIN_COLOR = self.root.cget("background")
         
         # --- ПЕРВАЯ СТРОКА ---
@@ -61,15 +63,15 @@ class GuiLayer:
         self.startterminate_session_button.pack(side=tk.LEFT, padx=2)  # Отступ между кнопкой и метками
         
         # Кнопка "Задним числом"
-        self.retroactively_termination_button = tk.Button(
+        self.retroactively_terminate_session_button = tk.Button(
             self.top_frame,
             font=("Helvetica", 8),
             text="Задним\nчислом",
             state=BUTTON_PARAM_STATE_DICT[app.is_in_session],
-            command=app.retroactively_termination
+            command=self._retroactively_terminate_session
         )
-        self.retroactively_termination_button.pack(side=tk.LEFT, padx=4, ipady=0)
-        self.retroactively_termination_button.config(
+        self.retroactively_terminate_session_button.pack(side=tk.LEFT, padx=4, ipady=0)
+        self.retroactively_terminate_session_button.config(
             state=BUTTON_PARAM_STATE_DICT[bool(app.amount_of_subsessions) and app.is_in_session]
         )
         
@@ -167,7 +169,10 @@ class GuiLayer:
         keyboard.add_hotkey('Alt+F11', self.stop_button.invoke)
         keyboard.add_hotkey('Alt+F12', self.start2_button.invoke)        
         
-    def on_closing(self, app):
-        app.stop_timers()
-        app.db.save_app_state(app.activity_in_timer1, app.activity_in_timer2)
+    def _retroactively_terminate_session(self):
+        RetroactivelyTerminationOfSession(self.root, self.app)
+
+    def _on_closing(self):
+        self.app.stop_timers()
+        self.app.db.save_app_state(self.app.activity_in_timer1, self.app.activity_in_timer2)
         self.root.destroy()
