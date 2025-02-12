@@ -27,11 +27,9 @@ class ApplicationLogic:
             self.is_in_session: bool = False                    # ЭТО НУЖНО
             self.session_number: int = 0                        # ЭТО НУЖНО
             self.start_current_session: str = "00:00:00"        # это не нужно
-            self.start_current_session_sec: float = 0.0         # это не нужно
+            self.start_current_session_sec: int = 0.0         # это не нужно
             self.duration_current_session: str = "--:--:--"     # ЭТО НУЖНО
             self.duration_current_session_sec: int = 0          # это не нужно
-            # TODO разобрать с int и float у start_current_session_sec и duration_current_session_sec
-            #   т.е. почему в одном случае одно, а в другом -- другое
             self.durations_of_activities_in_current_session: dict[int, int] = {
                 i + 1: 0 for i in range(self.amount_of_activities)
             }  # у нас
@@ -39,7 +37,7 @@ class ApplicationLogic:
             self.is_in_session: bool = ( last_session[2] == "---" )
             self.session_number: int = last_session[0]
             self.start_current_session: str = last_session[1]
-            self.start_current_session_sec: float = float(datetime_to_sec(self.start_current_session))
+            self.start_current_session_sec: int = datetime_to_sec(self.start_current_session)
             self.duration_current_session: str = last_session[3]
             self.duration_current_session_sec: int = time_to_sec(self.duration_current_session)
                 # нам в зависимости от is_in_session нужно будет либо start_current_session,
@@ -104,7 +102,7 @@ class ApplicationLogic:
         for key in self.durations_of_activities_in_current_session:
             self.durations_of_activities_in_current_session[key] = 0
         self.duration_of_all_activities = 0
-        self.start_current_session_sec = time.time()
+        self.start_current_session_sec: int = int(time.time())
         self.start_current_session = sec_to_datetime(self.start_current_session_sec)
         self.amount_of_subsessions = 0
         self.db.create_new_session(
@@ -125,7 +123,7 @@ class ApplicationLogic:
             self.stop_timers()
 
         if not retroactively:
-            self.end_current_session_sec = time.time()
+            self.end_current_session_sec = int(time.time())
         self.end_current_session = sec_to_datetime(self.end_current_session_sec)
         self.duration_current_session_sec = self.end_current_session_sec - self.start_current_session_sec
         self.duration_current_session = sec_to_time(self.duration_current_session_sec)
@@ -172,9 +170,9 @@ class ApplicationLogic:
                 text=sec_to_time(self.durations_of_activities_in_current_session[self.activity_in_timer2])
             )
 
-        self.timer_until_the_next_stop += 1
+        self.inner_timer += 1
         gui.root.after(
-            int(1000*(1 + self.start_timer_time + self.timer_until_the_next_stop - time.perf_counter())),
+            int(1000*(1 + self.start_inner_timer + self.inner_timer - time.perf_counter())),
             self.update_time
         )
         # Комментарий к данному куску кода:
@@ -192,11 +190,15 @@ class ApplicationLogic:
 Стартовая точка вхождения в поток таймера.
 Задаёт стартовые переменные и инициирует update_time, которая потом сама себя вызывает
         """
-        self.start_timer_time = time.perf_counter()
-        self.timer_until_the_next_stop = 0
+        self.start_inner_timer: float = time.perf_counter()
+        self.inner_timer: int = 0
+
+        self.start_subs_datetime_sec: int = int(time.time())
+        self.start_subs_by_inner_timer: int = 0
+
         # TODO тут правда нужен gui? что-то странно...
         gui.root.after(
-            int(1000*(1 + self.start_timer_time + self.timer_until_the_next_stop - time.perf_counter())),
+            int(1000*(1 + self.start_inner_timer + self.inner_timer - time.perf_counter())),
             self.update_time
         )
         # Здесь формулу оставил такой же, как и в методе update_time(): для пущей наглядности
@@ -217,10 +219,9 @@ class ApplicationLogic:
                 gui.start2_button.config(state=BUTTON_PARAM_STATE_DICT[False])
             threading.Thread(target=self.update_time_starting, daemon=True).start()
         else:                           # если другой таймер шёл (т.е. происходит переключение таймера)
-            self.ending_subsession()
             self.running_2 = False
+            self.ending_subsession()
             self.current_activity: int = self.activity_in_timer1
-        self.start_subs_datetime_sec = time.time()
                 
         gui.combobox_1.config(state='disabled')
         gui.combobox_2.config(state='readonly')
@@ -243,10 +244,9 @@ class ApplicationLogic:
                 gui.start1_button.config(state=BUTTON_PARAM_STATE_DICT[False])
             threading.Thread(target=self.update_time_starting, daemon=True).start()
         else:                           # если другой таймер шёл (т.е. происходит переключение таймера)
-            self.ending_subsession()
             self.running_1 = False
+            self.ending_subsession()
             self.current_activity: int = self.activity_in_timer2
-        self.start_subs_datetime_sec = time.time()
                 
         gui.combobox_1.config(state='readonly')
         gui.combobox_2.config(state='disabled')
@@ -274,8 +274,20 @@ class ApplicationLogic:
         gui.time_2_label.config(bg=gui.DEFAULT_WIN_COLOR)
 
     def ending_subsession(self):
-        self.end_subs_datetime_sec = time.time()
-        self.subs_duration_sec = self.end_subs_datetime_sec - self.start_subs_datetime_sec
+        self.subs_duration_sec: int = self.inner_timer - self.start_subs_by_inner_timer
+        self.end_subs_datetime_sec: int = self.start_subs_datetime_sec + self.subs_duration_sec
+
+        # обновляем время старта по inner_timer для следующей подсессии (если она будет)
+        self.start_subs_by_inner_timer = self.inner_timer
+        
+        # обновляем глобальное время старта для следующей подсессии (если она будет)
+        # делаем это сейчас, т.к. впереди у нас дооолгий запрос к БД
+        # однако пишем во временную переменную, т.к. self.start_subs_datetime_sec ещё потребуется для передачи в БД
+        # после передачи в БД мы и обновим self.start_subs_datetime_sec
+        start_next_subs_datetime_sec: int = int(time.time())
+        # вообще говоря это костыль, а по уму нужно делать асинхронку или что-то в этом духе
+        # TODO убрать этот костыль и сделать по уму
+
         self.amount_of_subsessions += 1
         
         # да, здесь нужна двойная функция: чтобы сразу два запроса к БД одним махом пульнуть
@@ -290,6 +302,8 @@ class ApplicationLogic:
             sec_to_time(self.duration_of_all_activities),
             sec_to_time(self.durations_of_activities_in_current_session[self.current_activity])
         )
+        
+        self.start_subs_datetime_sec = start_next_subs_datetime_sec
 
 
 if __name__ == "__main__":
