@@ -8,7 +8,7 @@ from typing import Any
 
 from common_functions import time_decorator, sec_to_time, time_to_sec, sec_to_datetime, datetime_to_sec
 from db_manager import DB
-from gui_layer import GuiLayer, BUTTON_PARAM_STATE_DICT, BUTTON_SESSIONS_DICT, START_TEXT_LABEL_DICT
+from gui_layer import GuiLayer, BUTTON_PARAM_STATE_DICT, BUTTON_SESSIONS_DICT, START_TEXT_LABEL_DICT, TIMERS
 
 
 class ApplicationLogic:
@@ -60,51 +60,36 @@ class ApplicationLogic:
         # да, тут логичнее было бы проверить количество подсессий во всей таблице subsessions!
         # но у нас такого параметра нет, поэтому проверяем как можем
 
-        app_state: dict[int, Any] = self.db.load_app_state()
-        self.activity_in_timer1: int = app_state['activity_in_timer1']
-        self.activity_in_timer2: int = app_state['activity_in_timer2']
+        app_state: dict[str, int] = self.db.load_app_state()
+        self.activity_in_timer: dict[int, int] = {}
+        for timer in TIMERS:
+            self.activity_in_timer[timer]: int = app_state[f'activity_in_timer{timer}']
 
-        self.running_1: bool = False
-        self.running_2: bool = False
+        self.running: dict[int, bool] = {timer: False for timer in TIMERS}
 
-    def on_select_combo_1(self, event=None):
-        self.activity_in_timer1 = gui.combobox_1.current() + 1  # слева отсчёт с 1, справа -- с 0; 
-        gui.time_1_label.config(
-            text=sec_to_time(self.durations_of_activities_in_current_session[self.activity_in_timer1])
+    def on_select_combo(self, timer_number: int):
+        self.activity_in_timer[timer_number] = gui.combobox[timer_number].current() + 1  # слева отсчёт с 1, справа -- с 0; 
+        gui.time_label[timer_number].config(
+            text=sec_to_time(self.durations_of_activities_in_current_session[self.activity_in_timer[timer_number]])
         )
-        if self.running_1 or self.running_2:
-            if self.activity_in_timer1 == self.activity_in_timer2:
-                self.running_1 = True
-                gui.start1_button.config(state=BUTTON_PARAM_STATE_DICT[False])
+        if any(self.running.values()):
+            if self.activity_in_timer[1] == self.activity_in_timer[2]:
+                self.running[timer_number] = True
+                gui.start_button[timer_number].config(state=BUTTON_PARAM_STATE_DICT[False])
             else:
-                self.running_1 = False
-                gui.start1_button.config(state=BUTTON_PARAM_STATE_DICT[True])
-
-    def on_select_combo_2(self, event=None):
-        self.activity_in_timer2 = gui.combobox_2.current() + 1
-        gui.time_2_label.config(
-            text=sec_to_time(self.durations_of_activities_in_current_session[self.activity_in_timer2])
-        )
-        if self.running_1 or self.running_2:
-            if self.activity_in_timer2 == self.activity_in_timer1:
-                self.running_2 = True
-                gui.start2_button.config(state=BUTTON_PARAM_STATE_DICT[False])
-            else:
-                self.running_2 = False
-                gui.start2_button.config(state=BUTTON_PARAM_STATE_DICT[True])
+                self.running[timer_number] = False
+                gui.start_button[timer_number].config(state=BUTTON_PARAM_STATE_DICT[True])
 
     def start_session(self):
-        # print("Начинаем новую сессию...")
         self.is_in_session = True
-        self.running_1 = False
-        self.running_2 = False
         self.session_number += 1
-        for key in self.durations_of_activities_in_current_session:
-            self.durations_of_activities_in_current_session[key] = 0
+        for activity in self.durations_of_activities_in_current_session.keys():
+            self.durations_of_activities_in_current_session[activity] = 0
         self.duration_of_all_activities = 0
+        self.amount_of_subsessions = 0
         self.start_current_session_sec: int = int(time.time())
         self.start_current_session = sec_to_datetime(self.start_current_session_sec)
-        self.amount_of_subsessions = 0
+
         self.db.create_new_session(
             self.session_number,
             self.start_current_session,
@@ -113,14 +98,12 @@ class ApplicationLogic:
         
         gui.start_sess_datetime_label.config(text=self.start_current_session)
         gui.current_session_value_label.config(text=self.session_number)
-        gui.time_1_label.config(text="00:00:00")
-        gui.time_2_label.config(text="00:00:00")
+        for timer in TIMERS:
+            gui.time_label[timer].config(text="00:00:00")
 
     def terminate_session(self, retroactively=False):
-        # print("Завершаем сессию")
         self.is_in_session = False
-        if self.running_1 or self.running_2:
-            self.stop_timers()
+        self.stop_timers()
 
         if not retroactively:
             self.end_current_session_sec = int(time.time())
@@ -149,26 +132,23 @@ class ApplicationLogic:
         gui.startterminate_session_button.config(text=BUTTON_SESSIONS_DICT[self.is_in_session])
 
         gui.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[False])
-        gui.start1_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
-        gui.start2_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
+        for timer in TIMERS:
+            gui.start_button[timer].config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
         gui.stop_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
             
     def update_time(self):
         """
-Эта функция вызывает саму себя и работает до тех пор, пока (self.running_1 or self.running_2) == True
+Эта функция вызывает саму себя и работает до тех пор, пока хотя бы один self.running равен True
         """
-        if not (self.running_1 or self.running_2):
+        if not any(self.running.values()):
             return
         self.durations_of_activities_in_current_session[self.current_activity] += 1
         self.duration_of_all_activities += 1
-        if self.running_1:
-            gui.time_1_label.config(
-                text=sec_to_time(self.durations_of_activities_in_current_session[self.activity_in_timer1])
-            )
-        if self.running_2:
-            gui.time_2_label.config(
-                text=sec_to_time(self.durations_of_activities_in_current_session[self.activity_in_timer2])
-            )
+        for timer in TIMERS:
+            if self.running[timer]:
+                gui.time_label[timer].config(
+                    text=sec_to_time(self.durations_of_activities_in_current_session[self.activity_in_timer[timer]])
+                )
 
         self.inner_timer += 1
         gui.root.after(
@@ -205,53 +185,28 @@ class ApplicationLogic:
         # Даже не стал убирать нулевой self.timer_until_the_next_stop
 
     @time_decorator
-    def start_timer_1(self):
+    def start_timer(self, timer_number: int):
         """
-Запускается при нажатии на кнопку "Старт 1"
+Запускается при нажатии на кнопку "Старт <timer_number>"
         """
-        if self.running_1:
+        if self.running[timer_number]:
             return
-        self.running_1 = True
-        if not self.running_2:          # если другой таймер стоял (т.е. оба таймера стояли; старт с "нуля")
-            self.current_activity: int = self.activity_in_timer1
-            if self.activity_in_timer2 == self.activity_in_timer1:
-                self.running_2 = True
-                gui.start2_button.config(state=BUTTON_PARAM_STATE_DICT[False])
+        self.running[timer_number] = True
+        if not self.running[3 - timer_number]:          # если другой таймер стоял (т.е. оба таймера стояли; старт с "нуля")
+            self.current_activity: int = self.activity_in_timer[timer_number]
+            if self.activity_in_timer[3 - timer_number] == self.activity_in_timer[timer_number]:
+                self.running[3 - timer_number] = True
+                gui.start_button[3 - timer_number].config(state=BUTTON_PARAM_STATE_DICT[False])
             threading.Thread(target=self.update_time_starting, daemon=True).start()
         else:                           # если другой таймер шёл (т.е. происходит переключение таймера)
-            self.running_2 = False
+            self.running[3 - timer_number] = False
             self.ending_subsession()
-            self.current_activity: int = self.activity_in_timer1
+            self.current_activity: int = self.activity_in_timer[timer_number]
                 
-        gui.combobox_1.config(state='disabled')
-        gui.combobox_2.config(state='readonly')
-        gui.time_1_label.config(bg='green')
-        gui.time_2_label.config(bg=gui.DEFAULT_WIN_COLOR)
-        gui.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[False])
-
-    @time_decorator
-    def start_timer_2(self):
-        """
-Запускается при нажатии на кнопку "Старт 2"
-        """
-        if self.running_2:
-            return        
-        self.running_2 = True
-        if not self.running_1:          # если другой таймер стоял (т.е. оба таймера стояли; старт с "нуля")
-            self.current_activity: int = self.activity_in_timer2
-            if self.activity_in_timer1 == self.activity_in_timer2:
-                self.running_1 = True
-                gui.start1_button.config(state=BUTTON_PARAM_STATE_DICT[False])
-            threading.Thread(target=self.update_time_starting, daemon=True).start()
-        else:                           # если другой таймер шёл (т.е. происходит переключение таймера)
-            self.running_1 = False
-            self.ending_subsession()
-            self.current_activity: int = self.activity_in_timer2
-                
-        gui.combobox_1.config(state='readonly')
-        gui.combobox_2.config(state='disabled')
-        gui.time_1_label.config(bg=gui.DEFAULT_WIN_COLOR)
-        gui.time_2_label.config(bg='green')
+        gui.combobox[timer_number].config(state='disabled')
+        gui.combobox[3 - timer_number].config(state='readonly')
+        gui.time_label[timer_number].config(bg='green')
+        gui.time_label[3 - timer_number].config(bg=gui.DEFAULT_WIN_COLOR)
         gui.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[False])
 
     @time_decorator
@@ -259,19 +214,16 @@ class ApplicationLogic:
         """
 Запускается при нажатии на кнопку "Стоп"
         """
-        if not (self.running_1 or self.running_2):
+        if not any(self.running.values()):
             return
-        self.running_1 = False
-        self.running_2 = False
+        self.running = {timer: False for timer in TIMERS}
         self.ending_subsession()
 
         gui.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[True])
-        gui.combobox_1.config(state='readonly')
-        gui.combobox_2.config(state='readonly')
-        gui.start1_button.config(state='normal')
-        gui.start2_button.config(state='normal')
-        gui.time_1_label.config(bg=gui.DEFAULT_WIN_COLOR)
-        gui.time_2_label.config(bg=gui.DEFAULT_WIN_COLOR)
+        for timer in TIMERS:
+            gui.combobox[timer].config(state='readonly')
+            gui.start_button[timer].config(state='normal')
+            gui.time_label[timer].config(bg=gui.DEFAULT_WIN_COLOR)
 
     def ending_subsession(self):
         self.subs_duration_sec: int = self.inner_timer - self.start_subs_by_inner_timer

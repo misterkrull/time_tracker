@@ -197,19 +197,18 @@ class DB:
         self.cur.execute("SELECT * FROM sessions ORDER BY id DESC LIMIT 1")
         return self.cur.fetchone()
 
-    def load_app_state(self) -> dict[int, Any]:
+    def load_app_state(self) -> dict[str, int]:
         self.cur.execute("SELECT * FROM app_state")
         res: tuple = self.cur.fetchall()[0]
         return dict(zip(DEFAULT_APP_STATE.keys(), res))
 
     def save_app_state(
         self,
-        activity_in_timer1: int,
-        activity_in_timer2: int
+        activity_in_timer: dict[int, int]
     ) -> None:
         self.cur.execute(
             "UPDATE app_state SET " + \
                 ", ".join(f"{str(key)} = ?" for key in DEFAULT_APP_STATE.keys()),
-            (activity_in_timer1, activity_in_timer2)
+            tuple(activity_in_timer.values())
         )
         self.conn.commit()

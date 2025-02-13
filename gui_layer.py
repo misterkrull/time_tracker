@@ -20,6 +20,9 @@ START_TEXT_LABEL_DICT = {
     False: "Длилась: "
 }
 
+TIMERS = [1, 2]
+SIDE_OF_FRAME = dict(zip(TIMERS, [tk.LEFT, tk.RIGHT]))
+
 
 class GuiLayer:
     def __init__(self, root, app):
@@ -37,8 +40,14 @@ class GuiLayer:
         main_frame = tk.Frame(self.root)
         main_frame.pack(pady=0)
 
-        self.init_left_frame(main_frame)
-        self.init_right_frame(main_frame)
+        # инициализируем словари виджетов
+        self.time_label = {}
+        self.combobox_value = {}
+        self.combobox = {}
+        self.start_button = {}                        
+
+        for timer in TIMERS:
+            self.init_timer_frame(main_frame, timer)
 
         # Кнопка "Стоп" внизу
         self.stop_button = tk.Button(
@@ -53,9 +62,9 @@ class GuiLayer:
         self.stop_button.pack(pady=10)
         
         # ГОРЯЧИЕ КЛАВИШИ -  имитируем нажатие нарисованных кнопок
-        keyboard.add_hotkey('Alt+F10', self.start1_button.invoke)
+        keyboard.add_hotkey('Alt+F10', self.start_button[1].invoke)
         keyboard.add_hotkey('Alt+F11', self.stop_button.invoke)
-        keyboard.add_hotkey('Alt+F12', self.start2_button.invoke)
+        keyboard.add_hotkey('Alt+F12', self.start_button[2].invoke)
     
     def init_top_frame(self):
         # Создаем фрейм для первой строки
@@ -116,84 +125,49 @@ class GuiLayer:
             state=BUTTON_PARAM_STATE_DICT[bool(self.app.amount_of_subsessions) and self.app.is_in_session]
         )
 
-    def init_left_frame(self, main_frame: tk.Frame):
-        # Создаём фрейм для левой половины
-        left_frame = tk.Frame(main_frame)
-        left_frame.pack(side=tk.LEFT, padx=50)
+    def init_timer_frame(self, main_frame: tk.Frame, timer_number: int):
+        timer_frame = tk.Frame(main_frame)
+        timer_frame.pack(
+            side=SIDE_OF_FRAME[timer_number],
+            padx=50
+        )
 
-        # Часы 1
-        self.time_1_label = tk.Label(
-            left_frame,
-            text=sec_to_time(self.app.durations_of_activities_in_current_session[self.app.activity_in_timer1]),
+        # Таймер
+        self.time_label[timer_number] = tk.Label(
+            timer_frame,
+            text=sec_to_time(self.app.durations_of_activities_in_current_session[self.app.activity_in_timer[timer_number]]),
             font=("Helvetica", 36)
         )
-        self.time_1_label.pack()
+        self.time_label[timer_number].pack()
 
-        # Комбобокс 1
-        self.combobox_1_value = tk.StringVar()  # нужен для работа с выбранным значением комбобокса
-        self.combobox_1 = ttk.Combobox(
-            left_frame,
-            textvariable=self.combobox_1_value,
+        # Комбобокс
+        self.combobox_value[timer_number] = tk.StringVar()  # нужен для работа с выбранным значением комбобокса
+        self.combobox[timer_number] = ttk.Combobox(
+            timer_frame,
+            textvariable=self.combobox_value[timer_number],
             values=list(self.app.activities_dict_to_show.values()),
             state='readonly'
         )
-        self.combobox_1.pack(pady=5)
-        self.combobox_1_value.set(self.app.activities_dict_to_show[self.app.activity_in_timer1])
-        self.combobox_1.bind("<<ComboboxSelected>>", self.app.on_select_combo_1)
+        self.combobox[timer_number].pack(pady=5)
+        self.combobox_value[timer_number].set(self.app.activities_dict_to_show[self.app.activity_in_timer[timer_number]])
+        self.combobox[timer_number].bind("<<ComboboxSelected>>", lambda event: self.app.on_select_combo(timer_number))
 
-        # Кнопка "Старт 1"
-        self.start1_button = tk.Button(
-            left_frame,
-            text="Старт 1",
-            command=self.app.start_timer_1,
+        # Кнопка "Старт 1/2"
+        self.start_button[timer_number] = tk.Button(
+            timer_frame,
+            text=f"Старт {timer_number}",
+            command=lambda: self.app.start_timer(timer_number),
             font=("Helvetica", 14),
             width=10,
             height=1, 
             state=BUTTON_PARAM_STATE_DICT[self.app.is_in_session]
         )
-        self.start1_button.pack(pady=5)
-
-    def init_right_frame(self, main_frame: tk.Frame):
-        # Правая половина
-        right_frame = tk.Frame(main_frame)
-        right_frame.pack(side=tk.RIGHT, padx=50)
-
-        # Часы 2
-        self.time_2_label = tk.Label(
-            right_frame,
-            text=sec_to_time(self.app.durations_of_activities_in_current_session[self.app.activity_in_timer2]),
-            font=("Helvetica", 36)
-        )
-        self.time_2_label.pack()
-
-        # Комбобокс 2
-        self.combobox_2_value = tk.StringVar()  # нужен для работа с выбранным значением комбобокса
-        self.combobox_2 = ttk.Combobox(
-            right_frame,
-            textvariable=self.combobox_2_value,
-            values=list(self.app.activities_dict_to_show.values()),
-            state='readonly'
-        )
-        self.combobox_2.pack(pady=5)
-        self.combobox_2_value.set(self.app.activities_dict_to_show[self.app.activity_in_timer2])
-        self.combobox_2.bind("<<ComboboxSelected>>", self.app.on_select_combo_2)
-
-        # Кнопка "Старт 2"
-        self.start2_button = tk.Button(
-            right_frame,
-            text="Старт 2",
-            command=self.app.start_timer_2,
-            font=("Helvetica", 14),
-            width=10,
-            height=1, 
-            state=BUTTON_PARAM_STATE_DICT[self.app.is_in_session]
-        )
-        self.start2_button.pack(pady=5)
+        self.start_button[timer_number].pack(pady=5)
 
     def _retroactively_terminate_session(self):
         RetroactivelyTerminationOfSession(self.root, self.app)
 
     def _on_closing(self):
         self.app.stop_timers()
-        self.app.db.save_app_state(self.app.activity_in_timer1, self.app.activity_in_timer2)
+        self.app.db.save_app_state(self.app.activity_in_timer)
         self.root.destroy()
