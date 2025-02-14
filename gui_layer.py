@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import keyboard
 import tkinter as tk
 from tkinter import ttk
@@ -11,6 +12,13 @@ BUTTON_SESSIONS_DICT = {True: "Завершить сессию", False: "Нов�
 START_TEXT_LABEL_DICT = {True: "Началась: ", False: "Длилась: "}
 
 
+@dataclass
+class TimerDescriptor:
+    activity_number: int = 1
+    is_running: bool = False
+    duration: int = 0
+
+
 class GuiLayer:
     def __init__(self, root, app):
         self.root = root
@@ -20,6 +28,10 @@ class GuiLayer:
         self.root.geometry("678x250")  # Устанавливаем размер окна
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)  # определяем метод закрытия окна
         self.DEFAULT_WIN_COLOR = self.root.cget("background")
+
+        self._timer_activity_names: dict[int, str] = {
+            k: f"{k}. {v}" for (k, v) in self.app.db.get_activity_names().items()
+        }
 
         self.init_top_frame()
 
@@ -129,19 +141,19 @@ class GuiLayer:
         # Комбобокс
         self.combobox_value[timer_number] = (
             tk.StringVar()
-        )  # нужен для работа с выбранным значением комбобокса
+        )  # нужен для работы с выбранным значением комбобокса
         self.combobox[timer_number] = ttk.Combobox(
             timer_frame,
             textvariable=self.combobox_value[timer_number],
-            values=list(self.app.activities_dict_to_show.values()),
+            values=list(self._timer_activity_names.values()),
             state="readonly",
         )
         self.combobox[timer_number].pack(pady=5)
         self.combobox_value[timer_number].set(
-            self.app.activities_dict_to_show[self.app.activity_in_timer[timer_number]]
+            self._timer_activity_names[self.app.activity_in_timer[timer_number]]
         )
         self.combobox[timer_number].bind(
-            "<<ComboboxSelected>>", lambda event: self.app.on_select_combo(timer_number)
+            "<<ComboboxSelected>>", lambda event: self.app.select_activity(timer_number)
         )
 
         # Кнопка "Старт <timer_number>"

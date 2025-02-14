@@ -22,12 +22,8 @@ from gui_layer import (
 class ApplicationLogic:
     def __init__(self):
         self.db = DB()
-
-        self.activities_dict: dict[int, str] = self.db.get_activities()
-        self.activities_dict_to_show: dict[int, str] = {
-            k: f"{k}. {v}" for (k, v) in self.activities_dict.items()
-        }
-        self.amount_of_activities: int = len(self.activities_dict)
+        
+        self._activity_count: int = self.db.get_activity_count()
 
         last_session: tuple | None = self.db.get_last_session()
         if (
@@ -43,7 +39,7 @@ class ApplicationLogic:
             self.duration_current_session: str = "--:--:--"  # ЭТО НУЖНО
             self.duration_current_session_sec: int = 0  # это не нужно
             self.durations_of_activities_in_current_session: dict[int, int] = {
-                i + 1: 0 for i in range(self.amount_of_activities)
+                i + 1: 0 for i in range(self._activity_count)
             }  # у нас
         else:
             self.is_in_session: bool = last_session[2] == "---"
@@ -61,7 +57,7 @@ class ApplicationLogic:
             self.durations_of_activities_in_current_session: dict[int, int] = {
                 i + 1: v
                 for i, v in enumerate(
-                    map(time_to_sec, last_session[-self.amount_of_activities :])
+                    map(time_to_sec, last_session[-self._activity_count :])
                 )
             }
         self.duration_of_all_activities: int = sum(
@@ -90,7 +86,7 @@ class ApplicationLogic:
 
         self.running: dict[int, bool] = {timer: False for timer in TIMERS}
 
-    def on_select_combo(self, timer_number: int):
+    def select_activity(self, timer_number: int):
         self.activity_in_timer[timer_number] = (
             gui.combobox[timer_number].current() + 1
         )  # слева отсчёт с 1, справа с 0
@@ -130,7 +126,7 @@ class ApplicationLogic:
         self.start_current_session = sec_to_datetime(self.start_current_session_sec)
 
         self.db.create_new_session(
-            self.session_number, self.start_current_session, self.amount_of_activities
+            self.session_number, self.start_current_session, self._activity_count
         )
 
         gui.start_sess_datetime_label.config(text=self.start_current_session)
