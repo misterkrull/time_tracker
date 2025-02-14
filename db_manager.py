@@ -2,7 +2,7 @@ import os
 import sqlite3
 from typing import Any
 
-from common_functions import time_decorator, sec_to_time, time_to_sec, sec_to_datetime, datetime_to_sec
+from common_functions import TIMERS
 
 MY_PATH = os.path.dirname(os.path.abspath(__file__))
 DB_FILENAME = "time_tracker.db"
@@ -14,8 +14,7 @@ DEFAULT_ACTIVITIES = [
     "Помощь маме"
 ]
 DEFAULT_APP_STATE = {
-    "activity_in_timer1": ("INTEGER", 1),
-    "activity_in_timer2": ("INTEGER", 2)
+    f"activity_in_timer{timer}": ("INTEGER", timer) for timer in TIMERS
 }
 
 

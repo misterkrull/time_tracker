@@ -4,8 +4,9 @@ import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from common_functions import time_decorator, sec_to_time, time_to_sec, sec_to_datetime, datetime_to_sec
+from common_functions import sec_to_time, TIMERS
 from retroactively_termination_of_session import RetroactivelyTerminationOfSession
+
 
 BUTTON_PARAM_STATE_DICT = {
     True: "normal", 
@@ -19,9 +20,6 @@ START_TEXT_LABEL_DICT = {
     True: "Началась: ",
     False: "Длилась: "
 }
-
-TIMERS = [1, 2]
-SIDE_OF_FRAME = dict(zip(TIMERS, [tk.LEFT, tk.RIGHT]))
 
 
 class GuiLayer:
@@ -128,8 +126,8 @@ class GuiLayer:
     def init_timer_frame(self, main_frame: tk.Frame, timer_number: int):
         timer_frame = tk.Frame(main_frame)
         timer_frame.pack(
-            side=SIDE_OF_FRAME[timer_number],
-            padx=50
+            side=tk.LEFT,
+            padx=10
         )
 
         # Таймер
@@ -152,7 +150,7 @@ class GuiLayer:
         self.combobox_value[timer_number].set(self.app.activities_dict_to_show[self.app.activity_in_timer[timer_number]])
         self.combobox[timer_number].bind("<<ComboboxSelected>>", lambda event: self.app.on_select_combo(timer_number))
 
-        # Кнопка "Старт 1/2"
+        # Кнопка "Старт <timer_number>"
         self.start_button[timer_number] = tk.Button(
             timer_frame,
             text=f"Старт {timer_number}",

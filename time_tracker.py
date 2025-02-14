@@ -6,9 +6,9 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import Any
 
-from common_functions import time_decorator, sec_to_time, time_to_sec, sec_to_datetime, datetime_to_sec
+from common_functions import time_decorator, sec_to_time, time_to_sec, sec_to_datetime, datetime_to_sec, TIMERS
 from db_manager import DB
-from gui_layer import GuiLayer, BUTTON_PARAM_STATE_DICT, BUTTON_SESSIONS_DICT, START_TEXT_LABEL_DICT, TIMERS
+from gui_layer import GuiLayer, BUTTON_PARAM_STATE_DICT, BUTTON_SESSIONS_DICT, START_TEXT_LABEL_DICT
 
 
 class ApplicationLogic:
@@ -63,11 +63,14 @@ class ApplicationLogic:
         app_state: dict[str, int] = self.db.load_app_state()
         self.activity_in_timer: dict[int, int] = {}
         for timer in TIMERS:
-            self.activity_in_timer[timer]: int = app_state[f'activity_in_timer{timer}']
+            self.activity_in_timer[timer] = app_state[f'activity_in_timer{timer}']
 
         self.running: dict[int, bool] = {timer: False for timer in TIMERS}
 
     def on_select_combo(self, timer_number: int):
+        self.on_select_combo_new(timer_number)
+
+    def on_select_combo_old(self, timer_number: int):
         self.activity_in_timer[timer_number] = gui.combobox[timer_number].current() + 1  # слева отсчёт с 1, справа -- с 0; 
         gui.time_label[timer_number].config(
             text=sec_to_time(self.durations_of_activities_in_current_session[self.activity_in_timer[timer_number]])
@@ -79,6 +82,22 @@ class ApplicationLogic:
             else:
                 self.running[timer_number] = False
                 gui.start_button[timer_number].config(state=BUTTON_PARAM_STATE_DICT[True])
+
+    def on_select_combo_new(self, timer_number: int):
+        self.activity_in_timer[timer_number] = gui.combobox[timer_number].current() + 1  # слева отсчёт с 1, справа с 0
+        gui.time_label[timer_number].config(
+            text=sec_to_time(self.durations_of_activities_in_current_session[self.activity_in_timer[timer_number]])
+        )
+
+        for timer in set(TIMERS) - {timer_number}:
+            if self.running[timer]:
+                if self.activity_in_timer[timer] == self.activity_in_timer[timer_number]:
+                    self.running[timer_number] = True
+                    gui.start_button[timer_number].config(state=BUTTON_PARAM_STATE_DICT[False])
+                else:                    
+                    self.running[timer_number] = False
+                    gui.start_button[timer_number].config(state=BUTTON_PARAM_STATE_DICT[True])
+                break
 
     def start_session(self):
         self.is_in_session = True
@@ -140,8 +159,12 @@ class ApplicationLogic:
         """
 Эта функция вызывает саму себя и работает до тех пор, пока хотя бы один self.running равен True
         """
+       
         if not any(self.running.values()):
+            # self.updating_time = False
             return
+        print(1000*(- self.start_inner_timer + time.perf_counter()), threading.get_ident())
+
         self.durations_of_activities_in_current_session[self.current_activity] += 1
         self.duration_of_all_activities += 1
         for timer in TIMERS:
@@ -151,6 +174,11 @@ class ApplicationLogic:
                 )
 
         self.inner_timer += 1
+
+        # threading.Timer(
+        #     int(1 + self.start_inner_timer + self.inner_timer - time.perf_counter()),
+        #     self.update_time
+        # ).start()
         gui.root.after(
             int(1000*(1 + self.start_inner_timer + self.inner_timer - time.perf_counter())),
             self.update_time
@@ -170,13 +198,20 @@ class ApplicationLogic:
 Стартовая точка вхождения в поток таймера.
 Задаёт стартовые переменные и инициирует update_time, которая потом сама себя вызывает
         """
+        # self.updating_time = True
+
         self.start_inner_timer: float = time.perf_counter()
         self.inner_timer: int = 0
 
         self.start_subs_datetime_sec: int = int(time.time())
         self.start_subs_by_inner_timer: int = 0
 
+        print("Поток:", threading.get_ident())
         # TODO тут правда нужен gui? что-то странно...
+        # threading.Timer(
+        #     int(1 + self.start_inner_timer + self.inner_timer - time.perf_counter()),
+        #     self.update_time
+        # ).start()
         gui.root.after(
             int(1000*(1 + self.start_inner_timer + self.inner_timer - time.perf_counter())),
             self.update_time
@@ -189,6 +224,10 @@ class ApplicationLogic:
         """
 Запускается при нажатии на кнопку "Старт <timer_number>"
         """
+        self.start_timer_new(timer_number)
+
+    def start_timer_old(self, timer_number: int):
+        print(threading.get_ident())
         if self.running[timer_number]:
             return
         self.running[timer_number] = True
@@ -197,7 +236,8 @@ class ApplicationLogic:
             if self.activity_in_timer[3 - timer_number] == self.activity_in_timer[timer_number]:
                 self.running[3 - timer_number] = True
                 gui.start_button[3 - timer_number].config(state=BUTTON_PARAM_STATE_DICT[False])
-            threading.Thread(target=self.update_time_starting, daemon=True).start()
+            self.update_time_starting()
+            # threading.Thread(target=self.update_time_starting, daemon=True).start()
         else:                           # если другой таймер шёл (т.е. происходит переключение таймера)
             self.running[3 - timer_number] = False
             self.ending_subsession()
@@ -208,6 +248,57 @@ class ApplicationLogic:
         gui.time_label[timer_number].config(bg='green')
         gui.time_label[3 - timer_number].config(bg=gui.DEFAULT_WIN_COLOR)
         gui.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[False])
+
+    @time_decorator
+    def start_timer_new(self, timer_number: int) -> None:
+        if self.running[timer_number]:
+            return
+        if not any(self.running.values()):  # старт "с нуля", т.е. все таймеры стояли
+            self.starting_new_timer(timer_number)
+        else:                               # переключение таймера, т.е. какой-то таймер работал
+            self.switching_timer(timer_number)
+            
+    def starting_new_timer(self, timer_number: int) -> None:
+        for timer in TIMERS:
+            if self.activity_in_timer[timer] == self.activity_in_timer[timer_number]:
+                self.running[timer] = True
+                if timer != timer_number:
+                    gui.start_button[timer].config(state=BUTTON_PARAM_STATE_DICT[False])
+                    # кстати, от этого поведения я возможно уйду: так-то прикольно было бы перекинуть
+                    # работающий таймер с одной позиции на другую
+
+        self.current_activity: int = self.activity_in_timer[timer_number]
+
+        gui.combobox[timer_number].config(state='disable')
+        gui.time_label[timer_number].config(bg='green')
+        gui.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[False])
+
+        self.update_time_starting()
+
+    def switching_timer(self, timer_number: int) -> None:
+        for timer in TIMERS:
+            if self.activity_in_timer[timer] == self.activity_in_timer[timer_number]:
+                self.running[timer] = True
+                if timer != timer_number:
+                    gui.start_button[timer].config(state=BUTTON_PARAM_STATE_DICT[False])
+                    # кстати, от этого поведения я возможно уйду: так-то прикольно было бы перекинуть
+                    # работающий таймер с одной позиции на другую
+        # приходится вызывать это дело отдельно, чтобы не было ситуации, когда any(self.running.values()) == False
+        for timer in TIMERS:
+            if self.activity_in_timer[timer] != self.activity_in_timer[timer_number]:
+                self.running[timer] = False
+                gui.start_button[timer].config(state=BUTTON_PARAM_STATE_DICT[True])
+                gui.combobox[timer].config(state='readonly')
+                gui.time_label[timer].config(bg=gui.DEFAULT_WIN_COLOR)
+
+        gui.combobox[timer_number].config(state='disable')
+        gui.time_label[timer_number].config(bg='green')
+
+        self.ending_subsession()
+        self.current_activity: int = self.activity_in_timer[timer_number]
+            # вот в этом месте тоже может произойти фигня с гонкой данных
+            # так-то self.current_activity используется в self.update_time
+            # хм...
 
     @time_decorator
     def stop_timers(self):
