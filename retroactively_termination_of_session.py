@@ -3,21 +3,25 @@ import tkinter as tk
 
 from common_functions import sec_to_datetime, datetime_to_sec
 # from time_tracker import ApplicationLogic
-    # нужно будет раскомментить, когда (если) time_tracker перестанет импортировать gui_layer
+# нужно будет раскомментить, когда (если) time_tracker перестанет импортировать gui_layer
+
 
 def _get_end_current_session_sec(entered_datetime: str, end_subs_datetime_sec: int) -> int:
     try:
         end_current_session_sec: int | None = datetime_to_sec(entered_datetime.strip())
     except ValueError:
         raise ValueError("Вы ввели некорректные дату и время!")
-    
+
     if end_current_session_sec < end_subs_datetime_sec:
         raise ValueError("Завершение сессии должно быть не раньше окончания последней подсессии!")
-    
+
     if end_current_session_sec >= time.time():
-        raise ValueError("Завершение сессии должно быть задним числом, т.е. в прошлом, а не в будущем!")
-    
+        raise ValueError(
+            "Завершение сессии должно быть задним числом, т.е. в прошлом, а не в будущем!"
+        )
+
     return end_current_session_sec
+
 
 class RetroactivelyTerminationOfSession:
     def __init__(self, root: tk.Tk, app):
@@ -44,26 +48,23 @@ class RetroactivelyTerminationOfSession:
 
         self._add_widgets()  # добавляем все элементы на наше окно
 
-        self.dialog_window.bind('<Return>', self._press_enter)
-        self.dialog_window.bind('<Escape>', self._on_cancel)
-    
+        self.dialog_window.bind("<Return>", self._press_enter)
+        self.dialog_window.bind("<Escape>", self._on_cancel)
+
     def _add_widgets(self):
         # добавляем надпись
         label = tk.Label(
             self.dialog_window,
             text='Введите "задние" дату и время (в формате YYYY-MM-DD HH:MM:SS)\n'
-                 'в промежутке между окончанием последней подсессии\n'
-                 f'({sec_to_datetime(self.app.end_subs_datetime_sec)}) и текущим временем:',
-            font=("Segoe UI", 10)
+            "в промежутке между окончанием последней подсессии\n"
+            f"({sec_to_datetime(self.app.end_subs_datetime_sec)}) и текущим временем:",
+            font=("Segoe UI", 10),
         )
         label.pack(pady=2)
 
         # добавляем поле для ввода
         self.input_field = tk.Entry(
-            self.dialog_window,
-            width=25,
-            font=("Segoe UI", 12),
-            justify='center'
+            self.dialog_window, width=25, font=("Segoe UI", 12), justify="center"
         )
         self.input_field.pack(pady=3)
         self.input_field.focus_set()
@@ -74,20 +75,12 @@ class RetroactivelyTerminationOfSession:
         button_frame.pack(pady=7)
 
         self.ok_button = tk.Button(
-            button_frame,
-            text="ОК",
-            command=self._on_ok,
-            width=12,
-            font=("Segoe UI", 10)
+            button_frame, text="ОК", command=self._on_ok, width=12, font=("Segoe UI", 10)
         )
         self.ok_button.pack(side=tk.LEFT, padx=10, pady=0)
 
         self.cancel_button = tk.Button(
-            button_frame,
-            text="Отмена",
-            command=self._on_cancel,
-            width=12,
-            font=("Segoe UI", 10)
+            button_frame, text="Отмена", command=self._on_cancel, width=12, font=("Segoe UI", 10)
         )
         self.cancel_button.pack(side=tk.LEFT, padx=2, pady=0)
 
@@ -99,7 +92,7 @@ class RetroactivelyTerminationOfSession:
         except ValueError as err:
             tk.messagebox.showerror("Ошибка", str(err))
             return
-        
+
         self.dialog_window.destroy()
         self.app.startterminate_session(retroactively=True)
 
@@ -107,11 +100,17 @@ class RetroactivelyTerminationOfSession:
         self.dialog_window.destroy()
 
     def _press_enter(self, event=None):
-        if event.widget == self.input_field:  # Если фокус на текстовом поле, то нам нужно действие кнопки "ОК"
+        if (
+            event.widget == self.input_field
+        ):  # Если фокус на текстовом поле, то нам нужно действие кнопки "ОК"
             self.ok_button.config(relief=tk.SUNKEN)  # Имитируем нажатие кнопки "ОК"
-            self.ok_button.after(100, lambda: self.ok_button.config(relief=tk.RAISED))  # Имитируем отпускание кнопки "ОК"
+            self.ok_button.after(
+                100, lambda: self.ok_button.config(relief=tk.RAISED)
+            )  # Имитируем отпускание кнопки "ОК"
             self.ok_button.invoke()  # Вызываем действие кнопки "ОК"
         else:  # Если фокус не на текстовом поле, т.е. на кнопке "ОК" или на кнопке "Отмена"
             event.widget.config(relief=tk.SUNKEN)  # Имитируем нажатие кнопки
-            event.widget.after(100, lambda: event.widget.config(relief=tk.RAISED))  # Имитируем отпускание кнопки
+            event.widget.after(
+                100, lambda: event.widget.config(relief=tk.RAISED)
+            )  # Имитируем отпускание кнопки
             event.widget.invoke()  # Вызываем действие кнопки, на которой фокус
