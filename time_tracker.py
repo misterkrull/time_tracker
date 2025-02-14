@@ -91,32 +91,6 @@ class ApplicationLogic:
         self.running: dict[int, bool] = {timer: False for timer in TIMERS}
 
     def on_select_combo(self, timer_number: int):
-        self.on_select_combo_new(timer_number)
-
-    def on_select_combo_old(self, timer_number: int):
-        self.activity_in_timer[timer_number] = (
-            gui.combobox[timer_number].current() + 1
-        )  # слева отсчёт с 1, справа -- с 0;
-        gui.time_label[timer_number].config(
-            text=sec_to_time(
-                self.durations_of_activities_in_current_session[
-                    self.activity_in_timer[timer_number]
-                ]
-            )
-        )
-        if any(self.running.values()):
-            if self.activity_in_timer[1] == self.activity_in_timer[2]:
-                self.running[timer_number] = True
-                gui.start_button[timer_number].config(
-                    state=BUTTON_PARAM_STATE_DICT[False]
-                )
-            else:
-                self.running[timer_number] = False
-                gui.start_button[timer_number].config(
-                    state=BUTTON_PARAM_STATE_DICT[True]
-                )
-
-    def on_select_combo_new(self, timer_number: int):
         self.activity_in_timer[timer_number] = (
             gui.combobox[timer_number].current() + 1
         )  # слева отсчёт с 1, справа с 0
@@ -283,46 +257,10 @@ class ApplicationLogic:
         # Даже не стал убирать нулевой self.timer_until_the_next_stop
 
     @time_decorator
-    def start_timer(self, timer_number: int):
+    def start_timer(self, timer_number: int) -> None:
         """
         Запускается при нажатии на кнопку "Старт <timer_number>"
         """
-        self.start_timer_new(timer_number)
-
-    def start_timer_old(self, timer_number: int):
-        print(threading.get_ident())
-        if self.running[timer_number]:
-            return
-        self.running[timer_number] = True
-        if not self.running[
-            3 - timer_number
-        ]:  # если другой таймер стоял (т.е. оба таймера стояли; старт с "нуля")
-            self.current_activity: int = self.activity_in_timer[timer_number]
-            if (
-                self.activity_in_timer[3 - timer_number]
-                == self.activity_in_timer[timer_number]
-            ):
-                self.running[3 - timer_number] = True
-                gui.start_button[3 - timer_number].config(
-                    state=BUTTON_PARAM_STATE_DICT[False]
-                )
-            self.update_time_starting()
-            # threading.Thread(target=self.update_time_starting, daemon=True).start()
-        else:  # если другой таймер шёл (т.е. происходит переключение таймера)
-            self.running[3 - timer_number] = False
-            self.ending_subsession()
-            self.current_activity: int = self.activity_in_timer[timer_number]
-
-        gui.combobox[timer_number].config(state="disabled")
-        gui.combobox[3 - timer_number].config(state="readonly")
-        gui.time_label[timer_number].config(bg="green")
-        gui.time_label[3 - timer_number].config(bg=gui.DEFAULT_WIN_COLOR)
-        gui.retroactively_terminate_session_button.config(
-            state=BUTTON_PARAM_STATE_DICT[False]
-        )
-
-    @time_decorator
-    def start_timer_new(self, timer_number: int) -> None:
         if self.running[timer_number]:
             return
         if not any(self.running.values()):  # старт "с нуля", т.е. все таймеры стояли
