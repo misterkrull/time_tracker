@@ -22,13 +22,14 @@ from gui_layer import (
 class ApplicationLogic:
     def __init__(self):
         self.db = DB()
-        
+        self.current_activity: int = 1
+        self.start_subs_datetime_sec: int = 0
+        self.start_subs_by_inner_timer: int = 0
+
         self._activity_count: int = self.db.get_activity_count()
 
         last_session: tuple | None = self.db.get_last_session()
-        if (
-            last_session is None
-        ):  # случай, если у нас ещё не было ни одной сессии (т.е. новая БД)
+        if last_session is None:  # случай, если у нас ещё не было ни одной сессии (т.е. новая БД)
             # TODO может быть убрать отсюда те переменные, которые нам будут не нужны?
             # однако если убрать, то эти переменные будут объявлены в другом месте
             #   их там в другом месте надо будет аннотировать? вот вопрос...
@@ -45,28 +46,20 @@ class ApplicationLogic:
             self.is_in_session: bool = last_session[2] == "---"
             self.session_number: int = last_session[0]
             self.start_current_session: str = last_session[1]
-            self.start_current_session_sec: int = datetime_to_sec(
-                self.start_current_session
-            )
+            self.start_current_session_sec: int = datetime_to_sec(self.start_current_session)
             self.duration_current_session: str = last_session[3]
-            self.duration_current_session_sec: int = time_to_sec(
-                self.duration_current_session
-            )
+            self.duration_current_session_sec: int = time_to_sec(self.duration_current_session)
             # нам в зависимости от is_in_session нужно будет либо start_current_session,
             #                                                либо duration_current_session
             self.durations_of_activities_in_current_session: dict[int, int] = {
                 i + 1: v
-                for i, v in enumerate(
-                    map(time_to_sec, last_session[-self._activity_count :])
-                )
+                for i, v in enumerate(map(time_to_sec, last_session[-self._activity_count :]))
             }
         self.duration_of_all_activities: int = sum(
             self.durations_of_activities_in_current_session.values()
         )
 
-        self.amount_of_subsessions: int = self.db.get_amount_of_subsessions(
-            self.session_number
-        )
+        self.amount_of_subsessions: int = self.db.get_amount_of_subsessions(self.session_number)
         # print("Количество подсессий:", self.amount_of_subsessions)
         if self.amount_of_subsessions > 0:
             self.end_subs_datetime_sec: int = datetime_to_sec(
@@ -100,19 +93,12 @@ class ApplicationLogic:
 
         for timer in set(TIMERS) - {timer_number}:
             if self.running[timer]:
-                if (
-                    self.activity_in_timer[timer]
-                    == self.activity_in_timer[timer_number]
-                ):
+                if self.activity_in_timer[timer] == self.activity_in_timer[timer_number]:
                     self.running[timer_number] = True
-                    gui.start_button[timer_number].config(
-                        state=BUTTON_PARAM_STATE_DICT[False]
-                    )
+                    gui.start_button[timer_number].config(state=BUTTON_PARAM_STATE_DICT[False])
                 else:
                     self.running[timer_number] = False
-                    gui.start_button[timer_number].config(
-                        state=BUTTON_PARAM_STATE_DICT[True]
-                    )
+                    gui.start_button[timer_number].config(state=BUTTON_PARAM_STATE_DICT[True])
                 break
 
     def start_session(self):
@@ -162,17 +148,11 @@ class ApplicationLogic:
         # однако если оставлять так, как есть, то может быть смену флага is_in_session нужно будет
         #   из обеих функций вытащить сюда, чтобы было наглядно видно, что флаг этот меняется, вообще-то
         gui.start_text_label.config(text=START_TEXT_LABEL_DICT[self.is_in_session])
-        gui.startterminate_session_button.config(
-            text=BUTTON_SESSIONS_DICT[self.is_in_session]
-        )
+        gui.startterminate_session_button.config(text=BUTTON_SESSIONS_DICT[self.is_in_session])
 
-        gui.retroactively_terminate_session_button.config(
-            state=BUTTON_PARAM_STATE_DICT[False]
-        )
+        gui.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[False])
         for timer in TIMERS:
-            gui.start_button[timer].config(
-                state=BUTTON_PARAM_STATE_DICT[self.is_in_session]
-            )
+            gui.start_button[timer].config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
         gui.stop_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
 
     def update_time(self):
@@ -207,10 +187,7 @@ class ApplicationLogic:
         #     self.update_time
         # ).start()
         gui.root.after(
-            int(
-                1000
-                * (1 + self.start_inner_timer + self.inner_timer - time.perf_counter())
-            ),
+            int(1000 * (1 + self.start_inner_timer + self.inner_timer - time.perf_counter())),
             self.update_time,
         )
         # Комментарий к данному куску кода:
@@ -243,10 +220,7 @@ class ApplicationLogic:
         #     self.update_time
         # ).start()
         gui.root.after(
-            int(
-                1000
-                * (1 + self.start_inner_timer + self.inner_timer - time.perf_counter())
-            ),
+            int(1000 * (1 + self.start_inner_timer + self.inner_timer - time.perf_counter())),
             self.update_time,
         )
         # Здесь формулу оставил такой же, как и в методе update_time(): для пущей наглядности
@@ -277,9 +251,7 @@ class ApplicationLogic:
 
         gui.combobox[timer_number].config(state="disable")
         gui.time_label[timer_number].config(bg="green")
-        gui.retroactively_terminate_session_button.config(
-            state=BUTTON_PARAM_STATE_DICT[False]
-        )
+        gui.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[False])
 
         self.update_time_starting()
 
@@ -318,9 +290,7 @@ class ApplicationLogic:
         self.running = {timer: False for timer in TIMERS}
         self.ending_subsession()
 
-        gui.retroactively_terminate_session_button.config(
-            state=BUTTON_PARAM_STATE_DICT[True]
-        )
+        gui.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[True])
         for timer in TIMERS:
             gui.combobox[timer].config(state="readonly")
             gui.start_button[timer].config(state="normal")
@@ -328,9 +298,7 @@ class ApplicationLogic:
 
     def ending_subsession(self):
         self.subs_duration_sec: int = self.inner_timer - self.start_subs_by_inner_timer
-        self.end_subs_datetime_sec: int = (
-            self.start_subs_datetime_sec + self.subs_duration_sec
-        )
+        self.end_subs_datetime_sec: int = self.start_subs_datetime_sec + self.subs_duration_sec
 
         # обновляем время старта по inner_timer для следующей подсессии (если она будет)
         self.start_subs_by_inner_timer = self.inner_timer
@@ -355,9 +323,7 @@ class ApplicationLogic:
             sec_to_time(self.subs_duration_sec),
             self.amount_of_subsessions,
             sec_to_time(self.duration_of_all_activities),
-            sec_to_time(
-                self.durations_of_activities_in_current_session[self.current_activity]
-            ),
+            sec_to_time(self.durations_of_activities_in_current_session[self.current_activity]),
         )
 
         self.start_subs_datetime_sec = start_next_subs_datetime_sec

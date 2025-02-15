@@ -1,22 +1,16 @@
-from dataclasses import dataclass
 import keyboard
 import tkinter as tk
 from tkinter import ttk
 
+# TODO: import after gui separation
+# from time_tracker import ApplicationLogic
 from common_functions import sec_to_time, TIMERS
 from retroactively_termination_of_session import RetroactivelyTerminationOfSession
 
 
-BUTTON_PARAM_STATE_DICT = {True: "normal", False: "disabled"}
 BUTTON_SESSIONS_DICT = {True: "Завершить сессию", False: "Новая сессия"}
 START_TEXT_LABEL_DICT = {True: "Началась: ", False: "Длилась: "}
-
-
-@dataclass
-class TimerDescriptor:
-    activity_number: int = 1
-    is_running: bool = False
-    duration: int = 0
+BUTTON_PARAM_STATE_DICT = {True: "normal", False: "disabled"}
 
 
 class GuiLayer:
@@ -45,6 +39,10 @@ class GuiLayer:
         self.combobox = {}
         self.start_button = {}
 
+        # TODO init timer_list
+        # self.timer_list = {
+            # TimeTrackerTimer(i+1, <activity_number>, self, main_frame) for i in range(TIMER_COUNT)
+        # }
         for timer in TIMERS:
             self.init_timer_frame(main_frame, timer)
 
@@ -122,7 +120,7 @@ class GuiLayer:
             ]
         )
 
-    def init_timer_frame(self, main_frame: tk.Frame, timer_number: int):
+    def init_timer_frame(self, main_frame: tk.Frame, timer_number: int) -> None:
         timer_frame = tk.Frame(main_frame)
         timer_frame.pack(side=tk.LEFT, padx=10)
 
@@ -142,6 +140,10 @@ class GuiLayer:
         self.combobox_value[timer_number] = (
             tk.StringVar()
         )  # нужен для работы с выбранным значением комбобокса
+        self.combobox_value[timer_number].set(
+            self._timer_activity_names[self.app.activity_in_timer[timer_number]]
+        )
+
         self.combobox[timer_number] = ttk.Combobox(
             timer_frame,
             textvariable=self.combobox_value[timer_number],
@@ -149,9 +151,6 @@ class GuiLayer:
             state="readonly",
         )
         self.combobox[timer_number].pack(pady=5)
-        self.combobox_value[timer_number].set(
-            self._timer_activity_names[self.app.activity_in_timer[timer_number]]
-        )
         self.combobox[timer_number].bind(
             "<<ComboboxSelected>>", lambda event: self.app.select_activity(timer_number)
         )
