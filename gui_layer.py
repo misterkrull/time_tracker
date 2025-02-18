@@ -6,6 +6,7 @@ from tkinter import ttk
 # from time_tracker import ApplicationLogic
 from common_functions import sec_to_time, TIMERS
 from retroactively_termination_of_session import RetroactivelyTerminationOfSession
+from timer import TimeTrackerTimer
 
 
 BUTTON_SESSIONS_DICT = {True: "Завершить сессию", False: "Новая сессия"}
@@ -43,8 +44,18 @@ class GuiLayer:
         # self.timer_list = {
             # TimeTrackerTimer(i+1, <activity_number>, self, main_frame) for i in range(TIMER_COUNT)
         # }
-        for timer in TIMERS:
-            self.init_timer_frame(main_frame, timer)
+        # for timer in TIMERS:
+        #     self.init_timer_frame(main_frame, timer)
+
+        self.timer_list = []
+        for timer_id in TIMERS:
+            self.timer_list.append(TimeTrackerTimer(
+                timer_id,
+                self.app.activity_in_timer[timer_id],
+                self,
+                main_frame,
+                self._timer_activity_names
+            ))
 
         # Кнопка "Стоп" внизу
         self.stop_button = tk.Button(
@@ -59,9 +70,9 @@ class GuiLayer:
         self.stop_button.pack(pady=10)
 
         # ГОРЯЧИЕ КЛАВИШИ -  имитируем нажатие нарисованных кнопок
-        keyboard.add_hotkey("Alt+F10", self.start_button[1].invoke)
-        keyboard.add_hotkey("Alt+F11", self.stop_button.invoke)
-        keyboard.add_hotkey("Alt+F12", self.start_button[2].invoke)
+        # keyboard.add_hotkey("Alt+F10", self.start_button[1].invoke)
+        # keyboard.add_hotkey("Alt+F11", self.stop_button.invoke)
+        # keyboard.add_hotkey("Alt+F12", self.start_button[2].invoke)
 
     def init_top_frame(self):
         # Создаем фрейм для первой строки

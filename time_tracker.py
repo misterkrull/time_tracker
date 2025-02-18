@@ -285,23 +285,26 @@ class ApplicationLogic:
         """
         Запускается при нажатии на кнопку "Стоп"
         """
-        if not any(self.running.values()):
+        if not any(timer.is_running for timer in gui.timer_list):
             return
-        self.running = {timer: False for timer in TIMERS}
+        # self.running = {timer: False for timer in TIMERS}
+        for timer in gui.timer_list:
+            timer.is_running = False
+        self.time_counter.is_running = False
         self.ending_subsession()
 
         gui.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[True])
-        for timer in TIMERS:
-            gui.combobox[timer].config(state="readonly")
-            gui.start_button[timer].config(state="normal")
-            gui.time_label[timer].config(bg=gui.DEFAULT_WIN_COLOR)
+        for timer in gui.timer_list:
+            timer.gui_combobox.config(state="readonly")
+            timer.gui_start_button.config(state="normal")
+            timer.gui_label.config(bg=gui.DEFAULT_WIN_COLOR)
 
     def ending_subsession(self):
-        self.subs_duration_sec: int = self.inner_timer - self.start_subs_by_inner_timer
+        self.subs_duration_sec: int = self.time_counter.inner_timer - self.start_subs_by_inner_timer
         self.end_subs_datetime_sec: int = self.start_subs_datetime_sec + self.subs_duration_sec
 
         # обновляем время старта по inner_timer для следующей подсессии (если она будет)
-        self.start_subs_by_inner_timer = self.inner_timer
+        self.start_subs_by_inner_timer = self.time_counter.inner_timer
 
         # обновляем глобальное время старта для следующей подсессии (если она будет)
         # делаем это сейчас, т.к. впереди у нас дооолгий запрос к БД
