@@ -1,5 +1,4 @@
 import time
-import tkinter as tk
 import threading
 
 from common_functions import sec_to_time
@@ -12,14 +11,19 @@ class TimeCounter:
         self.inner_timer: int = 0  # переименовать: счётчик ходов? seconds_counter?
         self.is_running = True
 
+        print("Поток:", threading.get_ident())
+
         self._gui_layer.root.after(
             int(1000 * (1 + self._start_inner_timer + self.inner_timer - time.perf_counter())),
             self.update_time
         )
-        # Здесь формулу оставил такой же, как и в методе update_time(): для пущей наглядности
-        # Даже не стал убирать нулевой self.timer_until_the_next_stop
+        # Здесь формулу оставил такой же, как и в методе self.update_time(): для пущей наглядности
+        # Даже не стал убирать нулевой self._start_inner_timer
 
     def update_time(self):
+        """
+        Эта функция вызывает саму себя и работает до тех пор, пока self.is_running равен True
+        """
         if not self.is_running:
             return
         
@@ -43,10 +47,20 @@ class TimeCounter:
 
         self.inner_timer += 1
 
+        # Пока решил оставить сей кусок кода: он вроде не нужен, но вдруг ещё пригодится...
+        # TODO разобраться с этим куском кода: потребуется ли он нам или фтопку нах?
+        # threading.Timer(
+        #     int(1 + self._start_inner_timer + self.inner_timer - time.perf_counter()),
+        #     self.update_time
+        # ).start()
+        # PS. Если что-то делать с этим кодом, то его ещё и в self.__init__() надо кинуть
+        
         self._gui_layer.root.after(
             int(1000 * (1 + self._start_inner_timer + self.inner_timer - time.perf_counter())),
             self.update_time
         )
+        # TODO: привести комментарий к нормальному виду, исходя из замечания Лёши,
+        #       а также попробовать реализовать эту логику в самом коде... вдруг не будет тормозить?
         # Комментарий к данному куску кода:
         # Тут мы вычисляем задержку в миллисекундах по какой-то не очень очевидной формуле, которую
         #   я вывел математически и уже не помню, как именно это было (что-то с чем-то сократилось etc)

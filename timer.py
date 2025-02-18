@@ -7,86 +7,6 @@ from time_counter import TimeCounter
 
 TK_BUTTON_STATES = {True: "normal", False: "disabled"}
 
-# # TODO: make False in stop_timers
-# should_clock_run = False
-
-# def update_time(tk_root: tk.Tk, start_inner_timer: float, inner_timer: int) -> None:
-#     """
-#     Эта функция вызывает саму себя и работает до тех пор, пока хотя бы один self.running равен True
-#     """
-    
-#     if not should_clock_run:
-#         return
-
-#     # print(
-#     #     1000 * (-self.start_inner_timer + time.perf_counter()),
-#     #     threading.get_ident(),
-#     # )
-
-#     self.durations_of_activities_in_current_session[self.current_activity] += 1
-#     self.duration_of_all_activities += 1
-    
-#     for timer in TIMERS:
-#         if self.running[timer]:
-#             gui.time_label[timer].config(
-#                 text=sec_to_time(
-#                     self.durations_of_activities_in_current_session[self.activity_in_timer[timer]]
-#                 )
-#             )
-
-#     inner_timer += 1
-
-#     # threading.Timer(
-#     #     int(1 + self.start_inner_timer + self.inner_timer - time.perf_counter()),
-#     #     self.update_time
-#     # ).start()
-#     tk_root.after(
-#         int(1000 * (1 + start_inner_timer + inner_timer - time.perf_counter())),
-#         update_time,
-#         tk_root, 
-#         start_inner_timer,
-#         inner_timer,
-#     )
-#     # Комментарий к данному куску кода:
-#     # Тут мы вычисляем задержку в миллисекундах по какой-то не очень очевидной формуле, которую
-#     #   я вывел математически и уже не помню, как именно это было (что-то с чем-то сократилось etc)
-#     # Но факт в том: эксперимент показал, что эта формула обеспечивает посекундную синхронность
-#     #   моего таймера и системных часов с точностью примерно 20мс, из-за чего не происходит
-#     #   накопления ошибки
-#     # Для пущей точности я НЕ выделяю эту формулу в отдельную переменную, т.к. имеет смысл максимально
-#     #   сблизить момент вычисления time.perf_counter() и передачу вычисленной задержки в gui.root.after
-#     # По этой же причине time.perf_counter() стоит в самом конце формулы. Небольшая, но красивая оптимизация
-
-
-# def _update_time_starting(tk_root: tk.Tk):
-#     """
-#     Стартовая точка вхождения в поток таймера.
-#     Задаёт стартовые переменные и инициирует update_time, которая потом сама себя вызывает
-#     """
-#     # self.updating_time = True
-
-#     start_inner_timer: float = time.perf_counter()
-#     inner_timer: int = 0
-
-#     # TODO тут правда нужен gui? что-то странно...
-#     # threading.Timer(
-#     #     int(1 + self.start_inner_timer + self.inner_timer - time.perf_counter()),
-#     #     self.update_time
-#     # ).start()
-    
-#     global should_clock_run 
-#     should_clock_run = True
-    
-#     tk_root.after(
-#         int(1000 * (1 + start_inner_timer + inner_timer - time.perf_counter())),
-#         update_time,
-#         tk_root, 
-#         start_inner_timer,
-#         inner_timer,
-#     )
-#     # Здесь формулу оставил такой же, как и в методе update_time(): для пущей наглядности
-#     # Даже не стал убирать нулевой self.timer_until_the_next_stop
-
 
 class TimeTrackerTimer:
     def __init__(
@@ -151,6 +71,7 @@ class TimeTrackerTimer:
         )
         self.gui_start_button.pack(pady=5)
 
+    # TODO вернуть тут аннотацию
     # def _select_activity(self, _: tk.Event[ttk.Combobox]):
     def _select_activity(self, _):  
         # Combobox считает с 0, а мы с 1
@@ -173,7 +94,7 @@ class TimeTrackerTimer:
     @time_decorator
     def _start_timer(self) -> None:
         """
-        Запускается при нажатии на кнопку "Старт <timer_number>"
+        Запускается при нажатии на кнопку "Старт <timer.id>"
         """
         if self.is_running:
             return
@@ -190,8 +111,10 @@ class TimeTrackerTimer:
             if timer.activity_number == self.activity_number:
                 timer.is_running = True
                 timer.gui_start_button.config(state=TK_BUTTON_STATES[False])
-                # кстати, от этого поведения я возможно уйду: так-то прикольно было бы перекинуть
+                # кстати, от засеривания кнопок я возможно уйду: так-то прикольно было бы перекинуть
                 # работающий таймер с одной позиции на другую
+                # кстати, можно вообще засеривать только текущую кнопку -- т.е. результат будет на 100% 
+                #   противоположен тому, что было когда-то раньше xDDDD
 
         self._gui_layer.app.current_activity = self.activity_number
 
@@ -201,7 +124,6 @@ class TimeTrackerTimer:
 
         self._gui_layer.app.start_subs_datetime_sec = int(time.time())
         self._gui_layer.app.start_subs_by_inner_timer = 0
-        # _update_time_starting()
         self._gui_layer.app.time_counter = TimeCounter(self._gui_layer)
 
     def _switching_timer(self) -> None:
@@ -209,16 +131,19 @@ class TimeTrackerTimer:
             if timer.activity_number == self.activity_number:
                 timer.is_running = True
                 timer.gui_start_button.config(state=TK_BUTTON_STATES[False])
-                # кстати, от этого поведения я возможно уйду: так-то прикольно было бы перекинуть
+                # кстати, от засеривания кнопок я возможно уйду: так-то прикольно было бы перекинуть
                 # работающий таймер с одной позиции на другую
+                # кстати, можно вообще засеривать только текущую кнопку -- т.е. результат будет на 100% 
+                #   противоположен тому, что было когда-то раньше xDDDD
 
-        # приходится вызывать это дело отдельно, чтобы не было ситуации, когда any(self.running.values()) == False
+        # приходится вызывать это дело отдельно, чтобы не было промежуточной ситуации, 
+        #   когда у всех таймеров все is_running равны False
         for timer in self._gui_layer.timer_list:
             if timer.activity_number != self.activity_number:
                 timer.is_running = False
                 timer.gui_start_button.config(state=TK_BUTTON_STATES[True])
                 timer.gui_combobox.config(state="readonly")
-                timer.gui_label.config(bg="SystemButtonFace")
+                timer.gui_label.config(bg=self._gui_layer.DEFAULT_WIN_COLOR)
 
         self.gui_combobox.config(state="disable")
         self.gui_label.config(bg="green")
@@ -228,3 +153,4 @@ class TimeTrackerTimer:
         # вот в этом месте тоже может произойти фигня с гонкой данных
         # так-то self.current_activity используется в self.update_time
         # хм...
+        # возможно решит проблему создание класса Subsessions

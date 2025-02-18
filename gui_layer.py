@@ -1,10 +1,10 @@
-import keyboard
+# import keyboard
 import tkinter as tk
 from tkinter import ttk
 
 # TODO: import after gui separation
 # from time_tracker import ApplicationLogic
-from common_functions import sec_to_time, TIMERS
+from common_functions import TIMERS
 from retroactively_termination_of_session import RetroactivelyTerminationOfSession
 from timer import TimeTrackerTimer
 
@@ -24,7 +24,9 @@ class GuiLayer:
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)  # определяем метод закрытия окна
         self.DEFAULT_WIN_COLOR = self.root.cget("background")
 
-        self._timer_activity_names: dict[int, str] = {
+        app_state: dict[str, int] = self.app.db.load_app_state()
+
+        timer_activity_names: dict[int, str] = {
             k: f"{k}. {v}" for (k, v) in self.app.db.get_activity_names().items()
         }
 
@@ -34,27 +36,14 @@ class GuiLayer:
         main_frame = tk.Frame(self.root)
         main_frame.pack(pady=0)
 
-        # инициализируем словари виджетов
-        self.time_label = {}
-        self.combobox_value = {}
-        self.combobox = {}
-        self.start_button = {}
-
-        # TODO init timer_list
-        # self.timer_list = {
-            # TimeTrackerTimer(i+1, <activity_number>, self, main_frame) for i in range(TIMER_COUNT)
-        # }
-        # for timer in TIMERS:
-        #     self.init_timer_frame(main_frame, timer)
-
         self.timer_list = []
         for timer_id in TIMERS:
             self.timer_list.append(TimeTrackerTimer(
                 timer_id,
-                self.app.activity_in_timer[timer_id],
+                app_state[f"activity_in_timer{timer_id}"],
                 self,
                 main_frame,
-                self._timer_activity_names
+                timer_activity_names
             ))
 
         # Кнопка "Стоп" внизу
@@ -131,57 +120,13 @@ class GuiLayer:
             ]
         )
 
-    def init_timer_frame(self, main_frame: tk.Frame, timer_number: int) -> None:
-        timer_frame = tk.Frame(main_frame)
-        timer_frame.pack(side=tk.LEFT, padx=10)
-
-        # Таймер
-        self.time_label[timer_number] = tk.Label(
-            timer_frame,
-            text=sec_to_time(
-                self.app.durations_of_activities_in_current_session[
-                    self.app.activity_in_timer[timer_number]
-                ]
-            ),
-            font=("Helvetica", 36),
-        )
-        self.time_label[timer_number].pack()
-
-        # Комбобокс
-        self.combobox_value[timer_number] = (
-            tk.StringVar()
-        )  # нужен для работы с выбранным значением комбобокса
-        self.combobox_value[timer_number].set(
-            self._timer_activity_names[self.app.activity_in_timer[timer_number]]
-        )
-
-        self.combobox[timer_number] = ttk.Combobox(
-            timer_frame,
-            textvariable=self.combobox_value[timer_number],
-            values=list(self._timer_activity_names.values()),
-            state="readonly",
-        )
-        self.combobox[timer_number].pack(pady=5)
-        self.combobox[timer_number].bind(
-            "<<ComboboxSelected>>", lambda event: self.app.select_activity(timer_number)
-        )
-
-        # Кнопка "Старт <timer_number>"
-        self.start_button[timer_number] = tk.Button(
-            timer_frame,
-            text=f"Старт {timer_number}",
-            command=lambda: self.app.start_timer(timer_number),
-            font=("Helvetica", 14),
-            width=10,
-            height=1,
-            state=BUTTON_PARAM_STATE_DICT[self.app.is_in_session],
-        )
-        self.start_button[timer_number].pack(pady=5)
-
     def _retroactively_terminate_session(self):
         RetroactivelyTerminationOfSession(self.root, self.app)
 
     def _on_closing(self):
         self.app.stop_timers()
-        self.app.db.save_app_state(self.app.activity_in_timer)
+        activity_in_timers = {}
+        for timer in self.timer_list:
+            activity_in_timers[timer.id] = timer.activity_number
+        self.app.db.save_app_state(activity_in_timers)
         self.root.destroy()

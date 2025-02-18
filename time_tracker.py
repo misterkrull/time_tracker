@@ -72,35 +72,6 @@ class ApplicationLogic:
         # да, тут логичнее было бы проверить количество подсессий во всей таблице subsessions!
         # но у нас такого параметра нет, поэтому проверяем как можем
 
-        app_state: dict[str, int] = self.db.load_app_state()
-        self.activity_in_timer: dict[int, int] = {}
-        for timer in TIMERS:
-            self.activity_in_timer[timer] = app_state[f"activity_in_timer{timer}"]
-
-        self.running: dict[int, bool] = {timer: False for timer in TIMERS}
-
-    def select_activity(self, timer_number: int):
-        self.activity_in_timer[timer_number] = (
-            gui.combobox[timer_number].current() + 1
-        )  # слева отсчёт с 1, справа с 0
-        gui.time_label[timer_number].config(
-            text=sec_to_time(
-                self.durations_of_activities_in_current_session[
-                    self.activity_in_timer[timer_number]
-                ]
-            )
-        )
-
-        for timer in set(TIMERS) - {timer_number}:
-            if self.running[timer]:
-                if self.activity_in_timer[timer] == self.activity_in_timer[timer_number]:
-                    self.running[timer_number] = True
-                    gui.start_button[timer_number].config(state=BUTTON_PARAM_STATE_DICT[False])
-                else:
-                    self.running[timer_number] = False
-                    gui.start_button[timer_number].config(state=BUTTON_PARAM_STATE_DICT[True])
-                break
-
     def start_session(self):
         self.is_in_session = True
         self.session_number += 1
@@ -117,8 +88,8 @@ class ApplicationLogic:
 
         gui.start_sess_datetime_label.config(text=self.start_current_session)
         gui.current_session_value_label.config(text=self.session_number)
-        for timer in TIMERS:
-            gui.time_label[timer].config(text="00:00:00")
+        for timer in gui.timer_list:
+            timer.gui_label.config(text="00:00:00")
 
     def terminate_session(self, retroactively=False):
         self.is_in_session = False
@@ -151,143 +122,22 @@ class ApplicationLogic:
         gui.startterminate_session_button.config(text=BUTTON_SESSIONS_DICT[self.is_in_session])
 
         gui.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[False])
-        for timer in TIMERS:
-            gui.start_button[timer].config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
+        for timer in gui.timer_list:
+            timer.gui_start_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
         gui.stop_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
-
-    def update_time(self):
-        """
-        Эта функция вызывает саму себя и работает до тех пор, пока хотя бы один self.running равен True
-        """
-
-        if not any(self.running.values()):
-            # self.updating_time = False
-            return
-        print(
-            1000 * (-self.start_inner_timer + time.perf_counter()),
-            threading.get_ident(),
-        )
-
-        self.durations_of_activities_in_current_session[self.current_activity] += 1
-        self.duration_of_all_activities += 1
-        for timer in TIMERS:
-            if self.running[timer]:
-                gui.time_label[timer].config(
-                    text=sec_to_time(
-                        self.durations_of_activities_in_current_session[
-                            self.activity_in_timer[timer]
-                        ]
-                    )
-                )
-
-        self.inner_timer += 1
-
-        # threading.Timer(
-        #     int(1 + self.start_inner_timer + self.inner_timer - time.perf_counter()),
-        #     self.update_time
-        # ).start()
-        gui.root.after(
-            int(1000 * (1 + self.start_inner_timer + self.inner_timer - time.perf_counter())),
-            self.update_time,
-        )
-        # Комментарий к данному куску кода:
-        # Тут мы вычисляем задержку в миллисекундах по какой-то не очень очевидной формуле, которую
-        #   я вывел математически и уже не помню, как именно это было (что-то с чем-то сократилось etc)
-        # Но факт в том: эксперимент показал, что эта формула обеспечивает посекундную синхронность
-        #   моего таймера и системных часов с точностью примерно 20мс, из-за чего не происходит
-        #   накопления ошибки
-        # Для пущей точности я НЕ выделяю эту формулу в отдельную переменную, т.к. имеет смысл максимально
-        #   сблизить момент вычисления time.perf_counter() и передачу вычисленной задержки в gui.root.after
-        # По этой же причине time.perf_counter() стоит в самом конце формулы. Небольшая, но красивая оптимизация
-
-    def update_time_starting(self):
-        """
-        Стартовая точка вхождения в поток таймера.
-        Задаёт стартовые переменные и инициирует update_time, которая потом сама себя вызывает
-        """
-        # self.updating_time = True
-
-        self.start_inner_timer: float = time.perf_counter()
-        self.inner_timer: int = 0
-
-        self.start_subs_datetime_sec: int = int(time.time())
-        self.start_subs_by_inner_timer: int = 0
-
-        print("Поток:", threading.get_ident())
-        # TODO тут правда нужен gui? что-то странно...
-        # threading.Timer(
-        #     int(1 + self.start_inner_timer + self.inner_timer - time.perf_counter()),
-        #     self.update_time
-        # ).start()
-        gui.root.after(
-            int(1000 * (1 + self.start_inner_timer + self.inner_timer - time.perf_counter())),
-            self.update_time,
-        )
-        # Здесь формулу оставил такой же, как и в методе update_time(): для пущей наглядности
-        # Даже не стал убирать нулевой self.timer_until_the_next_stop
-
-    @time_decorator
-    def start_timer(self, timer_number: int) -> None:
-        """
-        Запускается при нажатии на кнопку "Старт <timer_number>"
-        """
-        if self.running[timer_number]:
-            return
-        if not any(self.running.values()):  # старт "с нуля", т.е. все таймеры стояли
-            self.starting_new_timer(timer_number)
-        else:  # переключение таймера, т.е. какой-то таймер работал
-            self.switching_timer(timer_number)
-
-    def starting_new_timer(self, timer_number: int) -> None:
-        for timer in TIMERS:
-            if self.activity_in_timer[timer] == self.activity_in_timer[timer_number]:
-                self.running[timer] = True
-                if timer != timer_number:
-                    gui.start_button[timer].config(state=BUTTON_PARAM_STATE_DICT[False])
-                    # кстати, от этого поведения я возможно уйду: так-то прикольно было бы перекинуть
-                    # работающий таймер с одной позиции на другую
-
-        self.current_activity: int = self.activity_in_timer[timer_number]
-
-        gui.combobox[timer_number].config(state="disable")
-        gui.time_label[timer_number].config(bg="green")
-        gui.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[False])
-
-        self.update_time_starting()
-
-    def switching_timer(self, timer_number: int) -> None:
-        for timer in TIMERS:
-            if self.activity_in_timer[timer] == self.activity_in_timer[timer_number]:
-                self.running[timer] = True
-                if timer != timer_number:
-                    gui.start_button[timer].config(state=BUTTON_PARAM_STATE_DICT[False])
-                    # кстати, от этого поведения я возможно уйду: так-то прикольно было бы перекинуть
-                    # работающий таймер с одной позиции на другую
-        # приходится вызывать это дело отдельно, чтобы не было ситуации, когда any(self.running.values()) == False
-        for timer in TIMERS:
-            if self.activity_in_timer[timer] != self.activity_in_timer[timer_number]:
-                self.running[timer] = False
-                gui.start_button[timer].config(state=BUTTON_PARAM_STATE_DICT[True])
-                gui.combobox[timer].config(state="readonly")
-                gui.time_label[timer].config(bg=gui.DEFAULT_WIN_COLOR)
-
-        gui.combobox[timer_number].config(state="disable")
-        gui.time_label[timer_number].config(bg="green")
-
-        self.ending_subsession()
-        self.current_activity: int = self.activity_in_timer[timer_number]
-        # вот в этом месте тоже может произойти фигня с гонкой данных
-        # так-то self.current_activity используется в self.update_time
-        # хм...
 
     @time_decorator
     def stop_timers(self):
         """
         Запускается при нажатии на кнопку "Стоп"
         """
+        # TODO вот тут мы проверяем по всем таймерам, однако всегда (кроме самого начала до запуска
+        #   первого таймера) тут можно использовать self.time_counter.is_running
+        #   Может как-то модифицировать, чтобы можно было всегда так делать?
+        #   К примеру, добавить в инициализацию TimeCounter необзяательный флаг is_running.
+        #       который по умолчанию будет True, но вот для первого раза будет False
         if not any(timer.is_running for timer in gui.timer_list):
             return
-        # self.running = {timer: False for timer in TIMERS}
         for timer in gui.timer_list:
             timer.is_running = False
         self.time_counter.is_running = False
