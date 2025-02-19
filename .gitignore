@@ -2,6 +2,7 @@
 
 /.idea/
 /venv/
+/.vscode/
 
 /app_state.txt
 /time_tracker.db
