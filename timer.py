@@ -122,7 +122,7 @@ class TimeTrackerTimer:
 
         self._gui_layer.app.current_activity = self.activity_number
         self._gui_layer.time_counter = TimeCounter(self._gui_layer.root, self._gui_layer.on_time_counter_tick)
-        self._gui_layer.subsession = Subsession(self._gui_layer.time_counter, self._gui_layer.app)
+        self._gui_layer.subsession = Subsession(self._gui_layer.time_counter.inner_timer, self._gui_layer.app)
 
     def _switching_timer(self) -> None:
         for timer in self._gui_layer.timer_list:
@@ -156,6 +156,7 @@ class TimeTrackerTimer:
         # только после выполнения этого запроса уже обновляем self._gui_layer.subsession
             # вообще говоря это костыль, а по уму нужно делать асинхронку или что-то в этом духе
             # TODO убрать этот костыль и сделать по уму
-        new_subsession = Subsession(self._gui_layer.time_counter, self._gui_layer.app)
-        self._gui_layer.subsession.ending()
+        time_counter_value: int = self._gui_layer.time_counter.inner_timer
+        new_subsession = Subsession(time_counter_value, self._gui_layer.app)
+        self._gui_layer.subsession.ending(time_counter_value)
         self._gui_layer.subsession = new_subsession

@@ -149,7 +149,7 @@ class GuiLayer:
         for timer in self.timer_list:
             timer.is_running = False
         self.time_counter.is_running = False
-        self.subsession.ending()
+        self.subsession.ending(self.time_counter.inner_timer)
 
         self.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[True])
         for timer in self.timer_list:
