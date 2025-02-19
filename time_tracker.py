@@ -1,14 +1,11 @@
-import threading
 import time
 import tkinter as tk
 
 from common_functions import (
-    time_decorator,
     sec_to_time,
     time_to_sec,
     sec_to_datetime,
     datetime_to_sec,
-    TIMERS,
 )
 from db_manager import DB
 from gui_layer import (
@@ -22,7 +19,6 @@ from gui_layer import (
 class ApplicationLogic:
     def __init__(self):
         self.db = DB()
-        self.current_activity: int = 1
         self.start_subs_datetime_sec: int = 0
         self.start_subs_by_inner_timer: int = 0
 
@@ -93,7 +89,7 @@ class ApplicationLogic:
 
     def terminate_session(self, retroactively=False):
         self.is_in_session = False
-        self.stop_timers()
+        gui.stop_timers()
 
         if not retroactively:
             self.end_current_session_sec = int(time.time())
@@ -125,61 +121,6 @@ class ApplicationLogic:
         for timer in gui.timer_list:
             timer.gui_start_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
         gui.stop_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
-
-    @time_decorator
-    def stop_timers(self):
-        """
-        Запускается при нажатии на кнопку "Стоп"
-        """
-        # TODO вот тут мы проверяем по всем таймерам, однако всегда (кроме самого начала до запуска
-        #   первого таймера) тут можно использовать self.time_counter.is_running
-        #   Может как-то модифицировать, чтобы можно было всегда так делать?
-        #   К примеру, добавить в инициализацию TimeCounter необзяательный флаг is_running.
-        #       который по умолчанию будет True, но вот для первого раза будет False
-        if not any(timer.is_running for timer in gui.timer_list):
-            return
-        for timer in gui.timer_list:
-            timer.is_running = False
-        self.time_counter.is_running = False
-        self.ending_subsession()
-
-        gui.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[True])
-        for timer in gui.timer_list:
-            timer.gui_combobox.config(state="readonly")
-            timer.gui_start_button.config(state="normal")
-            timer.gui_label.config(bg=gui.DEFAULT_WIN_COLOR)
-
-    def ending_subsession(self):
-        self.subs_duration_sec: int = self.time_counter.inner_timer - self.start_subs_by_inner_timer
-        self.end_subs_datetime_sec: int = self.start_subs_datetime_sec + self.subs_duration_sec
-
-        # обновляем время старта по inner_timer для следующей подсессии (если она будет)
-        self.start_subs_by_inner_timer = self.time_counter.inner_timer
-
-        # обновляем глобальное время старта для следующей подсессии (если она будет)
-        # делаем это сейчас, т.к. впереди у нас дооолгий запрос к БД
-        # однако пишем во временную переменную, т.к. self.start_subs_datetime_sec ещё потребуется для передачи в БД
-        # после передачи в БД мы и обновим self.start_subs_datetime_sec
-        start_next_subs_datetime_sec: int = int(time.time())
-        # вообще говоря это костыль, а по уму нужно делать асинхронку или что-то в этом духе
-        # TODO убрать этот костыль и сделать по уму
-
-        self.amount_of_subsessions += 1
-
-        # да, здесь нужна двойная функция: чтобы сразу два запроса к БД одним махом пульнуть
-        # экономия времени существенная! замерял!
-        self.db.add_new_subsession_and_update_current_session(
-            self.session_number,
-            self.current_activity,
-            sec_to_datetime(self.start_subs_datetime_sec),
-            sec_to_datetime(self.end_subs_datetime_sec),
-            sec_to_time(self.subs_duration_sec),
-            self.amount_of_subsessions,
-            sec_to_time(self.duration_of_all_activities),
-            sec_to_time(self.durations_of_activities_in_current_session[self.current_activity]),
-        )
-
-        self.start_subs_datetime_sec = start_next_subs_datetime_sec
 
 
 if __name__ == "__main__":

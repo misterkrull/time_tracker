@@ -1,10 +1,9 @@
 # import keyboard
 import tkinter as tk
-from tkinter import ttk
 
 # TODO: import after gui separation
 # from time_tracker import ApplicationLogic
-from common_functions import TIMERS
+from common_functions import time_decorator, TIMERS
 from retroactively_termination_of_session import RetroactivelyTerminationOfSession
 from timer import TimeTrackerTimer
 
@@ -50,7 +49,7 @@ class GuiLayer:
         self.stop_button = tk.Button(
             self.root,
             text="Стоп",
-            command=self.app.stop_timers,
+            command=self.stop_timers,
             font=("Helvetica", 14),
             width=30,
             height=1,
@@ -124,9 +123,32 @@ class GuiLayer:
         RetroactivelyTerminationOfSession(self.root, self.app)
 
     def _on_closing(self):
-        self.app.stop_timers()
+        self.stop_timers()
         activity_in_timers = {}
         for timer in self.timer_list:
             activity_in_timers[timer.id] = timer.activity_number
         self.app.db.save_app_state(activity_in_timers)
         self.root.destroy()
+
+    @time_decorator
+    def stop_timers(self):
+        """
+        Запускается при нажатии на кнопку "Стоп"
+        """
+        # TODO вот тут мы проверяем по всем таймерам, однако всегда (кроме самого начала до запуска
+        #   первого таймера) тут можно использовать self.time_counter.is_running
+        #   Может как-то модифицировать, чтобы можно было всегда так делать?
+        #   К примеру, добавить в инициализацию TimeCounter необзяательный флаг is_running.
+        #       который по умолчанию будет True, но вот для первого раза будет False
+        if not any(timer.is_running for timer in self.timer_list):
+            return
+        for timer in self.timer_list:
+            timer.is_running = False
+        self.time_counter.is_running = False
+        self.subsession.ending()
+
+        self.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[True])
+        for timer in self.timer_list:
+            timer.gui_combobox.config(state="readonly")
+            timer.gui_start_button.config(state="normal")
+            timer.gui_label.config(bg=self.DEFAULT_WIN_COLOR)

@@ -4,8 +4,9 @@ import threading
 from common_functions import sec_to_time
 
 class TimeCounter:
-    def __init__(self, gui_layer):
+    def __init__(self, gui_layer, current_activity: int):
         self._gui_layer = gui_layer
+        self.current_activity = current_activity
 
         self._start_inner_timer: float = time.perf_counter()
         self.inner_timer: int = 0  # переименовать: счётчик ходов? seconds_counter?
@@ -32,7 +33,7 @@ class TimeCounter:
             threading.get_ident(),
         )
 
-        self._gui_layer.app.durations_of_activities_in_current_session[self._gui_layer.app.current_activity] += 1
+        self._gui_layer.app.durations_of_activities_in_current_session[self.current_activity] += 1
         self._gui_layer.app.duration_of_all_activities += 1
         
         for timer in self._gui_layer.timer_list:

@@ -1,9 +1,9 @@
-import time
 import tkinter as tk
 from tkinter import ttk
 
 from common_functions import sec_to_time, time_decorator
 from time_counter import TimeCounter
+from subsession import Subsession
 
 TK_BUTTON_STATES = {True: "normal", False: "disabled"}
 
@@ -116,15 +116,12 @@ class TimeTrackerTimer:
                 # кстати, можно вообще засеривать только текущую кнопку -- т.е. результат будет на 100% 
                 #   противоположен тому, что было когда-то раньше xDDDD
 
-        self._gui_layer.app.current_activity = self.activity_number
-
         self.gui_combobox.config(state="disable")
         self.gui_label.config(bg="green")
         self._gui_layer.retroactively_terminate_session_button.config(state=TK_BUTTON_STATES[False])
 
-        self._gui_layer.app.start_subs_datetime_sec = int(time.time())
-        self._gui_layer.app.start_subs_by_inner_timer = 0
-        self._gui_layer.app.time_counter = TimeCounter(self._gui_layer)
+        self._gui_layer.time_counter = TimeCounter(self._gui_layer, self.activity_number)
+        self._gui_layer.subsession = Subsession(self._gui_layer.time_counter, self._gui_layer.app)
 
     def _switching_timer(self) -> None:
         for timer in self._gui_layer.timer_list:
@@ -138,6 +135,8 @@ class TimeTrackerTimer:
 
         # приходится вызывать это дело отдельно, чтобы не было промежуточной ситуации, 
         #   когда у всех таймеров все is_running равны False
+            # TODO уже походу эта механика не актуальна, т.к. update_time() уже живёт по собственному флагу,
+            #   а не проверяет всякий раз все из_раннинги у каждого таймера
         for timer in self._gui_layer.timer_list:
             if timer.activity_number != self.activity_number:
                 timer.is_running = False
@@ -148,9 +147,14 @@ class TimeTrackerTimer:
         self.gui_combobox.config(state="disable")
         self.gui_label.config(bg="green")
 
-        self._gui_layer.app.ending_subsession()
-        self._gui_layer.app.current_activity = self.activity_number
-        # вот в этом месте тоже может произойти фигня с гонкой данных
-        # так-то self.current_activity используется в self.update_time
-        # хм...
-        # возможно решит проблему создание класса Subsessions
+        self._gui_layer.time_counter.current_activity = self.activity_number
+
+        # NOTE приходится сначала инициализировать новую субсессию, чтобы точное текущее время для неё застолбить,
+        # делаем это сейчас, т.к. впереди у нас дооолгий запрос к БД (в self._gui_layer.subsession.ending()),
+        # который должен выполняться от лица старой субсессии
+        # только после выполнения этого запроса уже обновляем self._gui_layer.subsession
+            # вообще говоря это костыль, а по уму нужно делать асинхронку или что-то в этом духе
+            # TODO убрать этот костыль и сделать по уму
+        new_subsession = Subsession(self._gui_layer.time_counter, self._gui_layer.app)
+        self._gui_layer.subsession.ending()
+        self._gui_layer.subsession = new_subsession
