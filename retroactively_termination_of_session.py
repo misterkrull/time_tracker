@@ -1,5 +1,7 @@
 import time
 import tkinter as tk
+# NOTE: you should import messagebox explicitly to make it works
+from tkinter import messagebox
 
 from common_functions import sec_to_datetime, datetime_to_sec
 # from time_tracker import ApplicationLogic
@@ -90,7 +92,7 @@ class RetroactivelyTerminationOfSession:
                 self.input_field.get(), self.app.end_subs_datetime_sec
             )
         except ValueError as err:
-            tk.messagebox.showerror("Ошибка", str(err))
+            messagebox.showerror("Ошибка", str(err))
             return
 
         self.dialog_window.destroy()
