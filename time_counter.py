@@ -4,13 +4,16 @@ import threading
 from common_functions import sec_to_time
 
 class TimeCounter:
-    def __init__(self, gui_layer, current_activity: int):
+    def __init__(self, gui_layer, current_activity: int, is_running: bool=True):
+        self.is_running = is_running
+        if not is_running:
+            return
+
         self._gui_layer = gui_layer
         self.current_activity = current_activity
 
         self._start_inner_timer: float = time.perf_counter()
         self.inner_timer: int = 0  # переименовать: счётчик ходов? seconds_counter?
-        self.is_running = True
 
         print("Поток:", threading.get_ident())
 

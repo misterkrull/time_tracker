@@ -6,6 +6,7 @@ import tkinter as tk
 from common_functions import time_decorator, TIMERS
 from retroactively_termination_of_session import RetroactivelyTerminationOfSession
 from timer import TimeTrackerTimer
+from time_counter import TimeCounter
 
 
 BUTTON_SESSIONS_DICT = {True: "Завершить сессию", False: "Новая сессия"}
@@ -22,6 +23,8 @@ class GuiLayer:
         self.root.geometry("678x250")  # Устанавливаем размер окна
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)  # определяем метод закрытия окна
         self.DEFAULT_WIN_COLOR = self.root.cget("background")
+
+        self.time_counter = TimeCounter(self, 1, is_running=False)
 
         app_state: dict[str, int] = self.app.db.load_app_state()
 
@@ -124,10 +127,9 @@ class GuiLayer:
 
     def _on_closing(self):
         self.stop_timers()
-        activity_in_timers = {}
-        for timer in self.timer_list:
-            activity_in_timers[timer.id] = timer.activity_number
-        self.app.db.save_app_state(activity_in_timers)
+        self.app.db.save_app_state(
+            {timer.id: timer.activity_number for timer in self.timer_list}
+        )
         self.root.destroy()
 
     @time_decorator
@@ -138,10 +140,12 @@ class GuiLayer:
         # TODO вот тут мы проверяем по всем таймерам, однако всегда (кроме самого начала до запуска
         #   первого таймера) тут можно использовать self.time_counter.is_running
         #   Может как-то модифицировать, чтобы можно было всегда так делать?
-        #   К примеру, добавить в инициализацию TimeCounter необзяательный флаг is_running.
+        #   К примеру, добавить в инициализацию TimeCounter необязательный флаг is_running.
         #       который по умолчанию будет True, но вот для первого раза будет False
-        if not any(timer.is_running for timer in self.timer_list):
+        # if not any(timer.is_running for timer in self.timer_list):
+        if not self.time_counter.is_running:
             return
+        
         for timer in self.timer_list:
             timer.is_running = False
         self.time_counter.is_running = False
