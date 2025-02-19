@@ -120,7 +120,8 @@ class TimeTrackerTimer:
         self.gui_label.config(bg="green")
         self._gui_layer.retroactively_terminate_session_button.config(state=TK_BUTTON_STATES[False])
 
-        self._gui_layer.time_counter = TimeCounter(self._gui_layer, self.activity_number)
+        self._gui_layer.app.current_activity = self.activity_number
+        self._gui_layer.time_counter = TimeCounter(self._gui_layer.root, self._gui_layer.on_time_counter_tick)
         self._gui_layer.subsession = Subsession(self._gui_layer.time_counter, self._gui_layer.app)
 
     def _switching_timer(self) -> None:
@@ -135,7 +136,7 @@ class TimeTrackerTimer:
 
         # приходится вызывать это дело отдельно, чтобы не было промежуточной ситуации, 
         #   когда у всех таймеров все is_running равны False
-            # TODO уже походу эта механика не актуальна, т.к. update_time() уже живёт по собственному флагу,
+            # TODO уже походу эта механика не актуальна, т.к. tick() уже живёт по собственному флагу,
             #   а не проверяет всякий раз все из_раннинги у каждого таймера
         for timer in self._gui_layer.timer_list:
             if timer.activity_number != self.activity_number:
@@ -146,8 +147,8 @@ class TimeTrackerTimer:
 
         self.gui_combobox.config(state="disable")
         self.gui_label.config(bg="green")
-
-        self._gui_layer.time_counter.current_activity = self.activity_number
+        
+        self._gui_layer.app.current_activity = self.activity_number
 
         # NOTE приходится сначала инициализировать новую субсессию, чтобы точное текущее время для неё застолбить,
         # делаем это сейчас, т.к. впереди у нас дооолгий запрос к БД (в self._gui_layer.subsession.ending()),

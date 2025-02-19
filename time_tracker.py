@@ -21,7 +21,7 @@ class ApplicationLogic:
         self.db = DB()
         self.start_subs_datetime_sec: int = 0
         self.start_subs_by_inner_timer: int = 0
-
+        self.current_activity: int = 0
         self._activity_count: int = self.db.get_activity_count()
 
         last_session: tuple | None = self.db.get_last_session()

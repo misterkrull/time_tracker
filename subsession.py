@@ -10,7 +10,7 @@ class Subsession:
 
         self._start_time = int(time.time())
         self._start_by_inner_timer = self._time_counter.inner_timer
-        self._current_activity = self._time_counter.current_activity
+        self._current_activity = self._app.current_activity
 
     def ending(self):
         duration: int = self._time_counter.inner_timer - self._start_by_inner_timer

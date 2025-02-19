@@ -3,7 +3,7 @@ import tkinter as tk
 
 # TODO: import after gui separation
 # from time_tracker import ApplicationLogic
-from common_functions import time_decorator, TIMERS
+from common_functions import sec_to_time, time_decorator, TIMERS
 from retroactively_termination_of_session import RetroactivelyTerminationOfSession
 from timer import TimeTrackerTimer
 from time_counter import TimeCounter
@@ -24,7 +24,7 @@ class GuiLayer:
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)  # определяем метод закрытия окна
         self.DEFAULT_WIN_COLOR = self.root.cget("background")
 
-        self.time_counter = TimeCounter(self, 1, is_running=False)
+        self.time_counter = TimeCounter(self.root, self.on_time_counter_tick, is_running=False)
 
         app_state: dict[str, int] = self.app.db.load_app_state()
 
@@ -40,13 +40,15 @@ class GuiLayer:
 
         self.timer_list = []
         for timer_id in TIMERS:
-            self.timer_list.append(TimeTrackerTimer(
-                timer_id,
-                app_state[f"activity_in_timer{timer_id}"],
-                self,
-                main_frame,
-                timer_activity_names
-            ))
+            self.timer_list.append(
+                TimeTrackerTimer(
+                    timer_id,
+                    app_state[f"activity_in_timer{timer_id}"],
+                    self,
+                    main_frame,
+                    timer_activity_names,
+                )
+            )
 
         # Кнопка "Стоп" внизу
         self.stop_button = tk.Button(
@@ -127,9 +129,7 @@ class GuiLayer:
 
     def _on_closing(self):
         self.stop_timers()
-        self.app.db.save_app_state(
-            {timer.id: timer.activity_number for timer in self.timer_list}
-        )
+        self.app.db.save_app_state({timer.id: timer.activity_number for timer in self.timer_list})
         self.root.destroy()
 
     @time_decorator
@@ -145,7 +145,7 @@ class GuiLayer:
         # if not any(timer.is_running for timer in self.timer_list):
         if not self.time_counter.is_running:
             return
-        
+
         for timer in self.timer_list:
             timer.is_running = False
         self.time_counter.is_running = False
@@ -156,3 +156,17 @@ class GuiLayer:
             timer.gui_combobox.config(state="readonly")
             timer.gui_start_button.config(state="normal")
             timer.gui_label.config(bg=self.DEFAULT_WIN_COLOR)
+
+    def on_time_counter_tick(self):
+        self.app.durations_of_activities_in_current_session[self.app.current_activity] += 1
+        self.app.duration_of_all_activities += 1
+
+        for timer in self.timer_list:
+            if timer.is_running:
+                timer.gui_label.config(
+                    text=sec_to_time(
+                        self.app.durations_of_activities_in_current_session[
+                            timer.activity_number
+                        ]
+                    )
+                )

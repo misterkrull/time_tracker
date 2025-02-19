@@ -1,53 +1,41 @@
 import time
 import threading
+import tkinter
+from typing import Callable
 
-from common_functions import sec_to_time
 
 class TimeCounter:
-    def __init__(self, gui_layer, current_activity: int, is_running: bool=True):
+    def __init__(self, tk_root: tkinter.Tk, run_on_tick: Callable, is_running: bool = True):
         self.is_running = is_running
-        if not is_running:
-            return
-
-        self._gui_layer = gui_layer
-        self.current_activity = current_activity
-
-        self._start_inner_timer: float = time.perf_counter()
         self.inner_timer: int = 0  # переименовать: счётчик ходов? seconds_counter?
+
+        self._tk_root = tk_root
+        self._run_on_tick = run_on_tick
+        self._start_inner_timer: float = time.perf_counter()
 
         print("Поток:", threading.get_ident())
 
-        self._gui_layer.root.after(
-            int(1000 * (1 + self._start_inner_timer + self.inner_timer - time.perf_counter())),
-            self.update_time
-        )
+        if self.is_running:
+            self._tk_root.after(
+                int(1000 * (1 + self._start_inner_timer + self.inner_timer - time.perf_counter())),
+                self._tick,
+            )
         # Здесь формулу оставил такой же, как и в методе self.update_time(): для пущей наглядности
         # Даже не стал убирать нулевой self._start_inner_timer
 
-    def update_time(self):
+    def _tick(self):
         """
         Эта функция вызывает саму себя и работает до тех пор, пока self.is_running равен True
         """
         if not self.is_running:
             return
-        
+
         print(
             1000 * (-self._start_inner_timer + time.perf_counter()),
             threading.get_ident(),
         )
 
-        self._gui_layer.app.durations_of_activities_in_current_session[self.current_activity] += 1
-        self._gui_layer.app.duration_of_all_activities += 1
-        
-        for timer in self._gui_layer.timer_list:
-            if timer.is_running:
-                timer.gui_label.config(
-                    text=sec_to_time(
-                        self._gui_layer.app.durations_of_activities_in_current_session[
-                            timer.activity_number
-                        ]
-                    )
-                )
+        self._run_on_tick()
 
         self.inner_timer += 1
 
@@ -58,10 +46,10 @@ class TimeCounter:
         #     self.update_time
         # ).start()
         # PS. Если что-то делать с этим кодом, то его ещё и в self.__init__() надо кинуть
-        
-        self._gui_layer.root.after(
+
+        self._tk_root.after(
             int(1000 * (1 + self._start_inner_timer + self.inner_timer - time.perf_counter())),
-            self.update_time
+            self._tick,
         )
         # TODO: привести комментарий к нормальному виду, исходя из замечания Лёши,
         #       а также попробовать реализовать эту логику в самом коде... вдруг не будет тормозить?
