@@ -19,38 +19,38 @@ from gui_layer import (
 class ApplicationLogic:
     def __init__(self):
         self.db = DB()
-        self.start_subs_datetime_sec: int = 0
-        self.start_subs_by_inner_timer: int = 0
         self.current_activity: int = 0
         self._activity_count: int = self.db.get_activity_count()
 
         last_session: tuple | None = self.db.get_last_session()
         if last_session is None:  # случай, если у нас ещё не было ни одной сессии (т.е. новая БД)
-            # TODO может быть убрать отсюда те переменные, которые нам будут не нужны?
-            # однако если убрать, то эти переменные будут объявлены в другом месте
-            #   их там в другом месте надо будет аннотировать? вот вопрос...
-            self.is_in_session: bool = False  # ЭТО НУЖНО
-            self.session_number: int = 0  # ЭТО НУЖНО
-            self.start_current_session: str = "00:00:00"  # это не нужно
-            self.start_current_session_sec: int = 0.0  # это не нужно
-            self.duration_current_session: str = "--:--:--"  # ЭТО НУЖНО
-            self.duration_current_session_sec: int = 0  # это не нужно
+            self.is_in_session: bool = False
+            self.session_number: int = 0
+            
+            self.init_to_start_sess_datetime_label: str = "--:--:--"
+            self._start_current_session: int = 0  # TODO нужно только для инициализации. оставляем?
+
             self.durations_of_activities_in_current_session: dict[int, int] = {
                 i + 1: 0 for i in range(self._activity_count)
-            }  # у нас
+            }
+
         else:
             self.is_in_session: bool = last_session[2] == "---"
             self.session_number: int = last_session[0]
-            self.start_current_session: str = last_session[1]
-            self.start_current_session_sec: int = datetime_to_sec(self.start_current_session)
-            self.duration_current_session: str = last_session[3]
-            self.duration_current_session_sec: int = time_to_sec(self.duration_current_session)
-            # нам в зависимости от is_in_session нужно будет либо start_current_session,
-            #                                                либо duration_current_session
+
+            # NOTE эти две переменные нужны для читаемости текста, а то last_session[1/3] не очень понятно
+            # TODO может быть всё-таки их удалить? может last_session сделать словарём?
+            start_current_session_datetime: str = last_session[1]
+            duration_current_session_HMS: str = last_session[3]
+            self.init_to_start_sess_datetime_label: str = \
+                start_current_session_datetime if self.is_in_session else duration_current_session_HMS
+            self._start_current_session: int = datetime_to_sec(start_current_session_datetime)
+
             self.durations_of_activities_in_current_session: dict[int, int] = {
                 i + 1: v
                 for i, v in enumerate(map(time_to_sec, last_session[-self._activity_count :]))
             }
+
         self.duration_of_all_activities: int = sum(
             self.durations_of_activities_in_current_session.values()
         )
@@ -58,7 +58,7 @@ class ApplicationLogic:
         self.amount_of_subsessions: int = self.db.get_amount_of_subsessions(self.session_number)
         # print("Количество подсессий:", self.amount_of_subsessions)
         if self.amount_of_subsessions > 0:
-            self.end_subs_datetime_sec: int = datetime_to_sec(
+            self.end_last_subsession: int = datetime_to_sec(
                 self.db.get_datetime_of_last_subsession()
             )
         # это нужно для работы кнопки "Завершить сессию задним числом"
@@ -68,45 +68,44 @@ class ApplicationLogic:
         # да, тут логичнее было бы проверить количество подсессий во всей таблице subsessions!
         # но у нас такого параметра нет, поэтому проверяем как можем
 
-    def start_session(self):
+    def start_session(self) -> None:
         self.is_in_session = True
         self.session_number += 1
         for activity in self.durations_of_activities_in_current_session.keys():
             self.durations_of_activities_in_current_session[activity] = 0
         self.duration_of_all_activities = 0
         self.amount_of_subsessions = 0
-        self.start_current_session_sec: int = int(time.time())
-        self.start_current_session = sec_to_datetime(self.start_current_session_sec)
+        self._start_current_session: int = int(time.time())
+        start_current_session_datetime = sec_to_datetime(self._start_current_session)
 
         self.db.create_new_session(
-            self.session_number, self.start_current_session, self._activity_count
+            self.session_number, start_current_session_datetime, self._activity_count
         )
 
-        gui.start_sess_datetime_label.config(text=self.start_current_session)
+        gui.start_sess_datetime_label.config(text=start_current_session_datetime)
         gui.current_session_value_label.config(text=self.session_number)
         for timer in gui.timer_list:
             timer.gui_label.config(text="00:00:00")
 
-    def terminate_session(self, retroactively=False):
+    def terminate_session(self, retroactively_end_session: int | None = None) -> None:
         self.is_in_session = False
-        gui.stop_timers()
 
-        if not retroactively:
-            self.end_current_session_sec = int(time.time())
-        self.end_current_session = sec_to_datetime(self.end_current_session_sec)
-        self.duration_current_session_sec = (
-            self.end_current_session_sec - self.start_current_session_sec
-        )
-        self.duration_current_session = sec_to_time(self.duration_current_session_sec)
+        if retroactively_end_session is None:
+            gui.stop_timers()
+            end_current_session = int(time.time())
+        else:   
+            end_current_session = retroactively_end_session
+        duration_current_session = end_current_session - self._start_current_session
+        duration_current_session_HMS = sec_to_time(duration_current_session)
         self.db.complete_new_session(
-            self.session_number, self.end_current_session, self.duration_current_session
+            self.session_number, sec_to_datetime(end_current_session), duration_current_session_HMS
         )
 
-        gui.start_sess_datetime_label.config(text=self.duration_current_session)
+        gui.start_sess_datetime_label.config(text=duration_current_session_HMS)
 
-    def startterminate_session(self, retroactively=False):
+    def startterminate_session(self, retroactively_end_session: int | None = None) -> None:
         if self.is_in_session:
-            self.terminate_session(retroactively)
+            self.terminate_session(retroactively_end_session)
         else:
             self.start_session()
 

@@ -16,6 +16,7 @@ class Subsession:
         end_time: int = self._start_time + duration
 
         self._app.amount_of_subsessions += 1
+        self._app.end_last_subsession = end_time
 
         # да, здесь нужна двойная функция: чтобы сразу два запроса к БД одним махом пульнуть
         # экономия времени существенная! замерял!

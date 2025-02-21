@@ -91,9 +91,7 @@ class GuiLayer:
         # Метка для времени начала сессии
         self.start_sess_datetime_label = tk.Label(
             top_frame,
-            text=self.app.start_current_session
-            if self.app.is_in_session
-            else self.app.duration_current_session,
+            text=self.app.init_to_start_sess_datetime_label,
             font=("Helvetica", 14),
         )
         self.start_sess_datetime_label.pack(side=tk.LEFT, padx=2)
@@ -125,7 +123,7 @@ class GuiLayer:
         )
 
     def _retroactively_terminate_session(self):
-        RetroactivelyTerminationOfSession(self.root, self.app)
+        RetroactivelyTerminationOfSession(self.root, self.app.end_last_subsession, self.app.startterminate_session)
 
     def _on_closing(self):
         self.stop_timers()
