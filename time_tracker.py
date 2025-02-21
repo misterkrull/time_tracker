@@ -2,9 +2,9 @@ import time
 import tkinter as tk
 
 from common_functions import (
-    sec_to_time,
+    duration_to_string,
     time_to_sec,
-    sec_to_datetime,
+    time_to_string,
     datetime_to_sec,
 )
 from db_manager import DB
@@ -26,7 +26,7 @@ class ApplicationLogic:
         if last_session is None:  # случай, если у нас ещё не было ни одной сессии (т.е. новая БД)
             self.is_in_session: bool = False
             self.session_number: int = 0
-            
+
             self.init_to_start_sess_datetime_label: str = "--:--:--"
             self._start_current_session: int = 0  # TODO нужно только для инициализации. оставляем?
 
@@ -42,8 +42,11 @@ class ApplicationLogic:
             # TODO может быть всё-таки их удалить? может last_session сделать словарём?
             start_current_session_datetime: str = last_session[1]
             duration_current_session_HMS: str = last_session[3]
-            self.init_to_start_sess_datetime_label: str = \
-                start_current_session_datetime if self.is_in_session else duration_current_session_HMS
+            self.init_to_start_sess_datetime_label: str = (
+                start_current_session_datetime
+                if self.is_in_session
+                else duration_current_session_HMS
+            )
             self._start_current_session: int = datetime_to_sec(start_current_session_datetime)
 
             self.durations_of_activities_in_current_session: dict[int, int] = {
@@ -76,7 +79,7 @@ class ApplicationLogic:
         self.duration_of_all_activities = 0
         self.amount_of_subsessions = 0
         self._start_current_session: int = int(time.time())
-        start_current_session_datetime = sec_to_datetime(self._start_current_session)
+        start_current_session_datetime = time_to_string(self._start_current_session)
 
         self.db.create_new_session(
             self.session_number, start_current_session_datetime, self._activity_count
@@ -93,12 +96,12 @@ class ApplicationLogic:
         if retroactively_end_session is None:
             gui.stop_timers()
             end_current_session = int(time.time())
-        else:   
+        else:
             end_current_session = retroactively_end_session
         duration_current_session = end_current_session - self._start_current_session
-        duration_current_session_HMS = sec_to_time(duration_current_session)
+        duration_current_session_HMS = duration_to_string(duration_current_session)
         self.db.complete_new_session(
-            self.session_number, sec_to_datetime(end_current_session), duration_current_session_HMS
+            self.session_number, time_to_string(end_current_session), duration_current_session_HMS
         )
 
         gui.start_sess_datetime_label.config(text=duration_current_session_HMS)

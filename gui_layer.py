@@ -1,9 +1,10 @@
 # import keyboard
+import time
 import tkinter as tk
 
 # TODO: import after gui separation
 # from time_tracker import ApplicationLogic
-from common_functions import sec_to_time, time_decorator, TIMERS
+from common_functions import duration_to_string, time_decorator, TIMERS
 from retroactively_termination_of_session import RetroactivelyTerminationOfSession
 from timer import TimeTrackerTimer
 from time_counter import TimeCounter
@@ -24,7 +25,9 @@ class GuiLayer:
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)  # определяем метод закрытия окна
         self.DEFAULT_WIN_COLOR = self.root.cget("background")
 
-        self.time_counter = TimeCounter(self.root, self.on_time_counter_tick, is_running=False)
+        self.time_counter = TimeCounter(
+            tk_root=self.root, on_tick_function=self.on_time_counter_tick
+        )
 
         app_state: dict[str, int] = self.app.db.load_app_state()
 
@@ -123,7 +126,9 @@ class GuiLayer:
         )
 
     def _retroactively_terminate_session(self):
-        RetroactivelyTerminationOfSession(self.root, self.app.end_last_subsession, self.app.startterminate_session)
+        RetroactivelyTerminationOfSession(
+            self.root, self.app.end_last_subsession, self.app.startterminate_session
+        )
 
     def _on_closing(self):
         self.stop_timers()
@@ -146,8 +151,9 @@ class GuiLayer:
 
         for timer in self.timer_list:
             timer.is_running = False
-        self.time_counter.is_running = False
-        self.subsession.ending(self.time_counter.inner_timer)
+
+        self.time_counter.stop()
+        self.subsession.ending(time.time())
 
         self.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[True])
         for timer in self.timer_list:
@@ -162,9 +168,7 @@ class GuiLayer:
         for timer in self.timer_list:
             if timer.is_running:
                 timer.gui_label.config(
-                    text=sec_to_time(
-                        self.app.durations_of_activities_in_current_session[
-                            timer.activity_number
-                        ]
+                    text=duration_to_string(
+                        self.app.durations_of_activities_in_current_session[timer.activity_number]
                     )
                 )

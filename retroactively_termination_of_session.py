@@ -1,10 +1,11 @@
 import time
 import tkinter as tk
+
 # NOTE: you should import messagebox explicitly to make it works
 from tkinter import messagebox
 from typing import Callable
 
-from common_functions import sec_to_datetime, datetime_to_sec
+from common_functions import time_to_string, datetime_to_sec
 # from time_tracker import ApplicationLogic
 # нужно будет раскомментить, когда (если) time_tracker перестанет импортировать gui_layer
 
@@ -46,7 +47,9 @@ class RetroactivelyTerminationOfSession:
         x = tk_root.winfo_x() + (tk_root.winfo_width() // 2) - width // 2
         y = tk_root.winfo_y() + (tk_root.winfo_height() // 2) - height // 2
 
-        self._dialog_window.geometry(f"{width}x{height}+{x}+{y}")  # указываем размеры и расположение
+        self._dialog_window.geometry(
+            f"{width}x{height}+{x}+{y}"
+        )  # указываем размеры и расположение
         self._dialog_window.title("Завершить сессию задним числом")  # указываем название окна
 
         self._add_widgets()  # добавляем все элементы на наше окно
@@ -60,7 +63,7 @@ class RetroactivelyTerminationOfSession:
             self._dialog_window,
             text='Введите "задние" дату и время (в формате YYYY-MM-DD HH:MM:SS)\n'
             "в промежутке между окончанием последней подсессии\n"
-            f"({sec_to_datetime(self._end_last_subsession)}) и текущим временем:",
+            f"({time_to_string(self._end_last_subsession)}) и текущим временем:",
             font=("Segoe UI", 10),
         )
         label.pack(pady=2)
@@ -71,7 +74,7 @@ class RetroactivelyTerminationOfSession:
         )
         self._input_field.pack(pady=3)
         self._input_field.focus_set()
-        self._input_field.insert(tk.END, sec_to_datetime(self._end_last_subsession))
+        self._input_field.insert(tk.END, time_to_string(self._end_last_subsession))
 
         # фрейм для кнопок
         button_frame = tk.Frame(self._dialog_window)
@@ -103,7 +106,9 @@ class RetroactivelyTerminationOfSession:
         self._dialog_window.destroy()
 
     def _press_enter(self, event: tk.Event) -> None:
-        if event.widget == self._input_field:  # Если фокус на текстовом поле, то нам нужно действие кнопки "ОК"
+        if (
+            event.widget == self._input_field
+        ):  # Если фокус на текстовом поле, то нам нужно действие кнопки "ОК"
             self._ok_button.config(relief=tk.SUNKEN)  # Имитируем нажатие кнопки "ОК"
             self._ok_button.after(
                 100, lambda: self._ok_button.config(relief=tk.RAISED)

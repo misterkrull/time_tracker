@@ -17,14 +17,14 @@ def time_decorator(func):
     return wrapper
 
 
-def sec_to_time(sec: int | float) -> str:
+def duration_to_string(sec: int | float) -> str:
     sec = int(sec)
     hours, remainder = divmod(sec, 3600)
     minutes, seconds = divmod(remainder, 60)
     return f"{hours:02}:{minutes:02}:{seconds:02}"
 
 
-def sec_to_datetime(sec: int | float) -> str:
+def time_to_string(sec: int | float) -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(sec))
 
 

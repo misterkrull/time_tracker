@@ -1,8 +1,8 @@
+import time
 import tkinter as tk
 from tkinter import ttk
 
-from common_functions import sec_to_time, time_decorator
-from time_counter import TimeCounter
+from common_functions import duration_to_string, time_decorator
 from subsession import Subsession
 
 TK_BUTTON_STATES = {True: "normal", False: "disabled"}
@@ -10,12 +10,12 @@ TK_BUTTON_STATES = {True: "normal", False: "disabled"}
 
 class TimeTrackerTimer:
     def __init__(
-            self,
-            id: int,
-            activity_number: int,
-            gui_layer, 
-            main_frame: tk.Frame,
-            timer_activity_names: dict[int, str]
+        self,
+        id: int,
+        activity_number: int,
+        gui_layer,
+        main_frame: tk.Frame,
+        timer_activity_names: dict[int, str],
     ):
         self.id = id
         self.activity_number = activity_number
@@ -37,7 +37,7 @@ class TimeTrackerTimer:
         # Лейбл
         self.gui_label = tk.Label(
             timer_frame,
-            text=sec_to_time(
+            text=duration_to_string(
                 self._gui_layer.app.durations_of_activities_in_current_session[self.activity_number]
             ),
             font=("Helvetica", 36),
@@ -73,12 +73,14 @@ class TimeTrackerTimer:
 
     # TODO вернуть тут аннотацию
     # def _select_activity(self, _: tk.Event[ttk.Combobox]):
-    def _select_activity(self, _):  
+    def _select_activity(self, _):
         # Combobox считает с 0, а мы с 1
         self.activity_number = self.gui_combobox.current() + 1
 
         self.gui_label.config(
-            text=sec_to_time(self._gui_layer.app.durations_of_activities_in_current_session[self.activity_number])
+            text=duration_to_string(
+                self._gui_layer.app.durations_of_activities_in_current_session[self.activity_number]
+            )
         )
 
         for other_timer in self._gui_layer.timer_list:
@@ -113,7 +115,7 @@ class TimeTrackerTimer:
                 timer.gui_start_button.config(state=TK_BUTTON_STATES[False])
                 # кстати, от засеривания кнопок я возможно уйду: так-то прикольно было бы перекинуть
                 # работающий таймер с одной позиции на другую
-                # кстати, можно вообще засеривать только текущую кнопку -- т.е. результат будет на 100% 
+                # кстати, можно вообще засеривать только текущую кнопку -- т.е. результат будет на 100%
                 #   противоположен тому, что было когда-то раньше xDDDD
 
         self.gui_combobox.config(state="disable")
@@ -121,8 +123,8 @@ class TimeTrackerTimer:
         self._gui_layer.retroactively_terminate_session_button.config(state=TK_BUTTON_STATES[False])
 
         self._gui_layer.app.current_activity = self.activity_number
-        self._gui_layer.time_counter = TimeCounter(self._gui_layer.root, self._gui_layer.on_time_counter_tick)
-        self._gui_layer.subsession = Subsession(self._gui_layer.time_counter.inner_timer, self._gui_layer.app)
+        self._gui_layer.time_counter.start()
+        self._gui_layer.subsession = Subsession(time.time(), self._gui_layer.app)
 
     def _switching_timer(self) -> None:
         for timer in self._gui_layer.timer_list:
@@ -131,13 +133,13 @@ class TimeTrackerTimer:
                 timer.gui_start_button.config(state=TK_BUTTON_STATES[False])
                 # кстати, от засеривания кнопок я возможно уйду: так-то прикольно было бы перекинуть
                 # работающий таймер с одной позиции на другую
-                # кстати, можно вообще засеривать только текущую кнопку -- т.е. результат будет на 100% 
+                # кстати, можно вообще засеривать только текущую кнопку -- т.е. результат будет на 100%
                 #   противоположен тому, что было когда-то раньше xDDDD
 
-        # приходится вызывать это дело отдельно, чтобы не было промежуточной ситуации, 
+        # приходится вызывать это дело отдельно, чтобы не было промежуточной ситуации,
         #   когда у всех таймеров все is_running равны False
-            # TODO уже походу эта механика не актуальна, т.к. tick() уже живёт по собственному флагу,
-            #   а не проверяет всякий раз все из_раннинги у каждого таймера
+        # TODO уже походу эта механика не актуальна, т.к. tick() уже живёт по собственному флагу,
+        #   а не проверяет всякий раз все из_раннинги у каждого таймера
         for timer in self._gui_layer.timer_list:
             if timer.activity_number != self.activity_number:
                 timer.is_running = False
@@ -147,16 +149,9 @@ class TimeTrackerTimer:
 
         self.gui_combobox.config(state="disable")
         self.gui_label.config(bg="green")
-        
+
         self._gui_layer.app.current_activity = self.activity_number
 
-        # NOTE приходится сначала инициализировать новую субсессию, чтобы точное текущее время для неё застолбить,
-        # делаем это сейчас, т.к. впереди у нас дооолгий запрос к БД (в self._gui_layer.subsession.ending()),
-        # который должен выполняться от лица старой субсессии
-        # только после выполнения этого запроса уже обновляем self._gui_layer.subsession
-            # вообще говоря это костыль, а по уму нужно делать асинхронку или что-то в этом духе
-            # TODO убрать этот костыль и сделать по уму
-        time_counter_value: int = self._gui_layer.time_counter.inner_timer
-        new_subsession = Subsession(time_counter_value, self._gui_layer.app)
-        self._gui_layer.subsession.ending(time_counter_value)
-        self._gui_layer.subsession = new_subsession
+        current_time = time.time()
+        self._gui_layer.subsession.ending(current_time)
+        self._gui_layer.subsession = Subsession(current_time, self._gui_layer.app)
