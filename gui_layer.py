@@ -104,7 +104,7 @@ class GuiLayer:
             top_frame,
             font=("Helvetica", 12),
             text=BUTTON_SESSIONS_DICT[self.app.is_in_session],
-            command=self.app.startterminate_session,
+            command=self._on_session_button_click,
         )
         self.startterminate_session_button.pack(
             side=tk.LEFT, padx=2
@@ -125,9 +125,31 @@ class GuiLayer:
             ]
         )
 
+    def _on_session_button_click(self):
+        if self.app.is_in_session:
+            self.app.terminate_session()
+        else:
+            start_current_session_datetime = self.app.start_session()
+            self.start_sess_datetime_label.config(text=start_current_session_datetime)
+            self.current_session_value_label.config(text=self.app.session_number)
+            for timer in self.timer_list:
+                timer.gui_label.config(text="00:00:00")
+
+        # вот это всё безобразие может быть надо по обеим функциям распихать?
+        # тогда эти строчки повторяется по два раза, однако возможно будет нагляднее
+        # однако если оставлять так, как есть, то может быть смену флага is_in_session нужно будет
+        #   из обеих функций вытащить сюда, чтобы было наглядно видно, что флаг этот меняется, вообще-то
+        self.start_text_label.config(text=START_TEXT_LABEL_DICT[self.app.is_in_session])
+        self.startterminate_session_button.config(text=BUTTON_SESSIONS_DICT[self.app.is_in_session])
+
+        self.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[False])
+        for timer in self.timer_list:
+            timer.gui_start_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
+        self.stop_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
+
     def _retroactively_terminate_session(self):
         RetroactivelyTerminationOfSession(
-            self.root, self.app.end_last_subsession, self.app.startterminate_session
+            self.root, self.app.end_last_subsession, self._on_session_button_click
         )
 
     def _on_closing(self):
@@ -146,7 +168,7 @@ class GuiLayer:
         #   К примеру, добавить в инициализацию TimeCounter необязательный флаг is_running.
         #       который по умолчанию будет True, но вот для первого раза будет False
         # if not any(timer.is_running for timer in self.timer_list):
-        if not self.time_counter.is_running:
+        if not self.time_counter.is_running():
             return
 
         for timer in self.timer_list:

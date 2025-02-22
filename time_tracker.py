@@ -71,7 +71,7 @@ class ApplicationLogic:
         # да, тут логичнее было бы проверить количество подсессий во всей таблице subsessions!
         # но у нас такого параметра нет, поэтому проверяем как можем
 
-    def start_session(self) -> None:
+    def start_session(self) -> str:
         self.is_in_session = True
         self.session_number += 1
         for activity in self.durations_of_activities_in_current_session.keys():
@@ -84,11 +84,7 @@ class ApplicationLogic:
         self.db.create_new_session(
             self.session_number, start_current_session_datetime, self._activity_count
         )
-
-        gui.start_sess_datetime_label.config(text=start_current_session_datetime)
-        gui.current_session_value_label.config(text=self.session_number)
-        for timer in gui.timer_list:
-            timer.gui_label.config(text="00:00:00")
+        return start_current_session_datetime
 
     def terminate_session(self, retroactively_end_session: int | None = None) -> None:
         self.is_in_session = False
@@ -105,24 +101,6 @@ class ApplicationLogic:
         )
 
         gui.start_sess_datetime_label.config(text=duration_current_session_HMS)
-
-    def startterminate_session(self, retroactively_end_session: int | None = None) -> None:
-        if self.is_in_session:
-            self.terminate_session(retroactively_end_session)
-        else:
-            self.start_session()
-
-        # вот это всё безобразие может быть надо по обеим функциям распихать?
-        # тогда эти строчки повторяется по два раза, однако возможно будет нагляднее
-        # однако если оставлять так, как есть, то может быть смену флага is_in_session нужно будет
-        #   из обеих функций вытащить сюда, чтобы было наглядно видно, что флаг этот меняется, вообще-то
-        gui.start_text_label.config(text=START_TEXT_LABEL_DICT[self.is_in_session])
-        gui.startterminate_session_button.config(text=BUTTON_SESSIONS_DICT[self.is_in_session])
-
-        gui.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[False])
-        for timer in gui.timer_list:
-            timer.gui_start_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
-        gui.stop_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
 
 
 if __name__ == "__main__":

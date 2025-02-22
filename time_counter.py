@@ -6,19 +6,21 @@ from typing import Callable
 
 class TimeCounter:
     def __init__(self, tk_root: tkinter.Tk, on_tick_function: Callable):
-        self.is_running = False
-
         self._tk_root = tk_root
         self._on_tick_function = on_tick_function
         self._start_time = 0
+        self._is_running = False
 
     def start(self) -> None:
-        self.is_running = True
+        self._is_running = True
         self._start_time = time.time()
         self._tick()
 
     def stop(self) -> None:
-        self.is_running = False
+        self._is_running = False
+
+    def is_running(self):
+        return self._is_running
 
     def _tick(self):
         """
@@ -31,7 +33,7 @@ class TimeCounter:
             threading.get_ident(),
         )
 
-        if self.is_running:
+        if self._is_running:
             self._tk_root.after(
                 # Интервал времени - секунда минус отклонение от реальной секунды.
                 ms=int(1000 * (1 - (time.time() - self._start_time) % 1)),
