@@ -144,8 +144,8 @@ class GuiLayer:
 
         self.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[False])
         for timer in self.timer_list:
-            timer.gui_start_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
-        self.stop_button.config(state=BUTTON_PARAM_STATE_DICT[self.is_in_session])
+            timer.gui_start_button.config(state=BUTTON_PARAM_STATE_DICT[self.app.is_in_session])
+        self.stop_button.config(state=BUTTON_PARAM_STATE_DICT[self.app.is_in_session])
 
     def _retroactively_terminate_session(self):
         RetroactivelyTerminationOfSession(
