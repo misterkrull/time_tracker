@@ -11,9 +11,11 @@ class TimeCounter:
         self._start_time = None
         self._is_running = False
         self._tkinter_task_id = None
+        self._seconds = 0
 
     def start(self) -> None:
         self._start_time = time.time()
+        self._seconds = 0
         self._start_tick()
 
     def stop(self) -> None:
@@ -25,8 +27,10 @@ class TimeCounter:
 
     def _start_tick(self):
         self._tkinter_task_id = self._tk_root.after(
-            # Интервал времени - секунда минус отклонение от реальной секунды.
-            ms=int(1000 * (1 - (time.time() - self._start_time) % 1)),
+            # Интервал времени:
+            # когда пересидели, то секунда минус отклонение;
+            # когда не досидели, то секунда плюс отклонение.
+            ms=int(1000 * (1 - (time.time() - self._start_time - self._seconds))),
             func=self._tick,
         )
 
@@ -41,6 +45,6 @@ class TimeCounter:
             1000 * (time.time() - self._start_time),
             threading.get_ident(),
         )
-
+        self._seconds += 1
         self._on_tick_function()
         self._start_tick()
