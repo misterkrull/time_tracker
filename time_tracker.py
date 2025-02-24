@@ -8,12 +8,7 @@ from common_functions import (
     datetime_to_sec,
 )
 from db_manager import DB
-from gui_layer import (
-    GuiLayer,
-    BUTTON_PARAM_STATE_DICT,
-    BUTTON_SESSIONS_DICT,
-    START_TEXT_LABEL_DICT,
-)
+from gui_layer import GuiLayer
 
 
 class ApplicationLogic:

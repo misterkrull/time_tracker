@@ -3,9 +3,8 @@ import tkinter as tk
 from tkinter import ttk
 
 from common_functions import duration_to_string, time_decorator
+from gui_constants import TK_BUTTON_STATES
 from subsession import Subsession
-
-TK_BUTTON_STATES = {True: "normal", False: "disabled"}
 
 
 class TimeTrackerTimer:
@@ -103,6 +102,7 @@ class TimeTrackerTimer:
             timer.gui_label.config(bg=self._gui_layer.DEFAULT_WIN_COLOR)
         self.gui_combobox.config(state="disable")
         self.gui_label.config(bg="green")
+        # timer.gui_start_button.config(state=TK_BUTTON_STATES[False])
         
         if self.is_running:
             return

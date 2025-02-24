@@ -5,14 +5,10 @@ import tkinter as tk
 # TODO: import after gui separation
 # from time_tracker import ApplicationLogic
 from common_functions import duration_to_string, time_decorator, TIMERS
+from gui_constants import SESSION_BUTTON_DICT, SESSION_LABEL_DICT, TK_BUTTON_STATES
 from retroactively_termination_of_session import RetroactivelyTerminationOfSession
 from timer import TimeTrackerTimer
 from time_counter import TimeCounter
-
-
-BUTTON_SESSIONS_DICT = {True: "Завершить сессию", False: "Новая сессия"}
-START_TEXT_LABEL_DICT = {True: "Началась: ", False: "Длилась: "}
-BUTTON_PARAM_STATE_DICT = {True: "normal", False: "disabled"}
 
 
 class GuiLayer:
@@ -61,7 +57,7 @@ class GuiLayer:
             font=("Helvetica", 14),
             width=30,
             height=1,
-            state=BUTTON_PARAM_STATE_DICT[self.app.is_in_session],
+            state=TK_BUTTON_STATES[self.app.is_in_session],
         )
         self.stop_button.pack(pady=10)
 
@@ -80,16 +76,16 @@ class GuiLayer:
         session_text_label.pack(side=tk.LEFT)
 
         # Создаем метку для отображения номера текущей сессии
-        self.current_session_value_label = tk.Label(
+        self.current_session_number_label = tk.Label(
             top_frame, text=self.app.session_number, font=("Helvetica", 18)
         )
-        self.current_session_value_label.pack(side=tk.LEFT, padx=10)  # Отступ между метками
+        self.current_session_number_label.pack(side=tk.LEFT, padx=10)  # Отступ между метками
 
         # Метка для текста "Началась:"/"Длилась:"
-        self.start_text_label = tk.Label(
-            top_frame, text=START_TEXT_LABEL_DICT[self.app.is_in_session], font=("Helvetica", 14)
+        self.session_label = tk.Label(
+            top_frame, text=SESSION_LABEL_DICT[self.app.is_in_session], font=("Helvetica", 14)
         )
-        self.start_text_label.pack(side=tk.LEFT, padx=2)
+        self.session_label.pack(side=tk.LEFT, padx=2)
 
         # Метка для времени начала сессии
         self.start_sess_datetime_label = tk.Label(
@@ -100,13 +96,13 @@ class GuiLayer:
         self.start_sess_datetime_label.pack(side=tk.LEFT, padx=2)
 
         # Кнопка "Новая сессия"/"Завершить сессию"
-        self.startterminate_session_button = tk.Button(
+        self.session_button = tk.Button(
             top_frame,
             font=("Helvetica", 12),
-            text=BUTTON_SESSIONS_DICT[self.app.is_in_session],
+            text=SESSION_BUTTON_DICT[self.app.is_in_session],
             command=self._on_session_button_click,
         )
-        self.startterminate_session_button.pack(
+        self.session_button.pack(
             side=tk.LEFT, padx=2
         )  # Отступ между кнопкой и метками
 
@@ -115,12 +111,12 @@ class GuiLayer:
             top_frame,
             font=("Helvetica", 8),
             text="Задним\nчислом",
-            state=BUTTON_PARAM_STATE_DICT[self.app.is_in_session],
+            state=TK_BUTTON_STATES[self.app.is_in_session],
             command=self._retroactively_terminate_session,
         )
         self.retroactively_terminate_session_button.pack(side=tk.LEFT, padx=4, ipady=0)
         self.retroactively_terminate_session_button.config(
-            state=BUTTON_PARAM_STATE_DICT[
+            state=TK_BUTTON_STATES[
                 bool(self.app.amount_of_subsessions) and self.app.is_in_session
             ]
         )
@@ -131,7 +127,7 @@ class GuiLayer:
         else:
             start_current_session_datetime = self.app.start_session()
             self.start_sess_datetime_label.config(text=start_current_session_datetime)
-            self.current_session_value_label.config(text=self.app.session_number)
+            self.current_session_number_label.config(text=self.app.session_number)
             for timer in self.timer_list:
                 timer.gui_label.config(text="00:00:00")
 
@@ -139,13 +135,13 @@ class GuiLayer:
         # тогда эти строчки повторяется по два раза, однако возможно будет нагляднее
         # однако если оставлять так, как есть, то может быть смену флага is_in_session нужно будет
         #   из обеих функций вытащить сюда, чтобы было наглядно видно, что флаг этот меняется, вообще-то
-        self.start_text_label.config(text=START_TEXT_LABEL_DICT[self.app.is_in_session])
-        self.startterminate_session_button.config(text=BUTTON_SESSIONS_DICT[self.app.is_in_session])
+        self.session_label.config(text=SESSION_LABEL_DICT[self.app.is_in_session])
+        self.session_button.config(text=SESSION_BUTTON_DICT[self.app.is_in_session])
 
-        self.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[False])
+        self.retroactively_terminate_session_button.config(state=TK_BUTTON_STATES[False])
         for timer in self.timer_list:
-            timer.gui_start_button.config(state=BUTTON_PARAM_STATE_DICT[self.app.is_in_session])
-        self.stop_button.config(state=BUTTON_PARAM_STATE_DICT[self.app.is_in_session])
+            timer.gui_start_button.config(state=TK_BUTTON_STATES[self.app.is_in_session])
+        self.stop_button.config(state=TK_BUTTON_STATES[self.app.is_in_session])
 
     def _retroactively_terminate_session(self):
         RetroactivelyTerminationOfSession(
@@ -177,7 +173,7 @@ class GuiLayer:
         self.time_counter.stop()
         self.subsession.ending(time.time())
 
-        self.retroactively_terminate_session_button.config(state=BUTTON_PARAM_STATE_DICT[True])
+        self.retroactively_terminate_session_button.config(state=TK_BUTTON_STATES[True])
         for timer in self.timer_list:
             timer.gui_combobox.config(state="readonly")
             timer.gui_start_button.config(state="normal")
