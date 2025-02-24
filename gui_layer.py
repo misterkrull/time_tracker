@@ -2,7 +2,7 @@
 import time
 import tkinter as tk
 
-from common_functions import duration_to_string, time_decorator, TIMERS, time_to_string
+from common_functions import duration_to_string, print_performance, TIMERS, time_to_string
 from gui_constants import SESSION_BUTTON_DICT, SESSION_LABEL_DICT, TK_BUTTON_STATES
 from retroactively_termination_of_session import RetroactivelyTerminationOfSession
 from time_tracker import ApplicationLogic
@@ -159,7 +159,7 @@ class GuiLayer:
         self.app.db.save_app_state({timer.id: timer.activity_number for timer in self.timer_list})
         self.root.destroy()
 
-    @time_decorator
+    @print_performance
     def stop_timers(self):
         """
         Запускается при нажатии на кнопку "Стоп"

@@ -2,7 +2,7 @@ import time
 import tkinter as tk
 from tkinter import ttk
 
-from common_functions import duration_to_string, time_decorator
+from common_functions import duration_to_string, print_performance
 from gui_constants import TK_BUTTON_STATES, TK_COMBOBOX_STATE, TK_IS_GREEN_COLORED
 from subsession import Subsession
 
@@ -87,20 +87,20 @@ class TimeTrackerTimer:
                 continue
 
             if other_timer.is_running:
-                self.is_running = (self.activity_number == other_timer.activity_number)
+                self.is_running = self.activity_number == other_timer.activity_number
                 return
 
-    @time_decorator
+    @print_performance
     def _start_timer(self) -> None:
         """
         Запускается при нажатии на кнопку "Старт <timer.id>"
-        """        
+        """
         for timer in self._gui_layer.timer_list:
-            is_timer_self = (timer == self)
+            is_timer_self = timer == self
             timer.gui_combobox.config(state=TK_COMBOBOX_STATE[not is_timer_self])
             timer.gui_label.config(bg=TK_IS_GREEN_COLORED[is_timer_self])
             timer.gui_start_button.config(state=TK_BUTTON_STATES[not is_timer_self])
-        
+
         if self.is_running:
             return
 
@@ -108,13 +108,13 @@ class TimeTrackerTimer:
         if self._gui_layer.time_counter.is_running():
             was_timecounter_running = True
             self._gui_layer.time_counter.stop()
-            
+
         self._gui_layer.time_counter.start()
         current_time = time.time()
-        
+
         self._gui_layer.app.current_activity = self.activity_number
         for timer in self._gui_layer.timer_list:
-            timer.is_running = (timer.activity_number == self.activity_number)
+            timer.is_running = timer.activity_number == self.activity_number
 
         if was_timecounter_running:
             self._gui_layer.subsession.ending(current_time)

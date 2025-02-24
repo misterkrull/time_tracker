@@ -4,11 +4,11 @@ import time
 TIMERS = [1, 2, 3, 4, 5]
 
 
-def time_decorator(func):
+def print_performance(func):
     def wrapper(*args, **kwargs):
-        start_time = time.time()
+        start_time = time.perf_counter()
         result = func(*args, **kwargs)
-        end_time = time.time()
+        end_time = time.perf_counter()
         print(
             f"Функция '{func.__name__}' выполнена за {1000 * (end_time - start_time):.3f} миллисекунд."
         )
