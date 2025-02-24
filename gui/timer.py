@@ -3,8 +3,8 @@ import tkinter as tk
 from tkinter import ttk
 
 from common_functions import duration_to_string, print_performance
-from gui_constants import TK_BUTTON_STATES, TK_COMBOBOX_STATE, TK_IS_GREEN_COLORED
 from subsession import Subsession
+from gui.gui_constants import TK_BUTTON_STATES, TK_COMBOBOX_STATE, TK_IS_GREEN_COLORED
 
 
 class TimeTrackerTimer:

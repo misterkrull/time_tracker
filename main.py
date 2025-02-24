@@ -1,6 +1,6 @@
 import tkinter as tk
-from gui_layer import GuiLayer
-from time_tracker import ApplicationLogic
+from gui.gui_layer import GuiLayer
+from application_logic import ApplicationLogic
 
 
 def main():

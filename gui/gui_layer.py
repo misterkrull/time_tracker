@@ -3,10 +3,10 @@ import time
 import tkinter as tk
 
 from common_functions import duration_to_string, print_performance, TIMERS, time_to_string
-from gui_constants import SESSION_BUTTON_DICT, SESSION_LABEL_DICT, TK_BUTTON_STATES
-from retroactively_termination_of_session import RetroactivelyTerminationOfSession
-from time_tracker import ApplicationLogic
-from timer import TimeTrackerTimer
+from gui.gui_constants import SESSION_BUTTON_DICT, SESSION_LABEL_DICT, TK_BUTTON_STATES
+from gui.retroactively_termination_of_session import RetroactivelyTerminationOfSession
+from gui.timer import TimeTrackerTimer
+from application_logic import ApplicationLogic
 from time_counter import TimeCounter
 
 
