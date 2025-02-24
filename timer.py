@@ -127,31 +127,29 @@ class TimeTrackerTimer:
         self._gui_layer.subsession = Subsession(time.time(), self._gui_layer.app)
 
     def _switching_timer(self) -> None:
+        self._gui_layer.time_counter.stop()
+        self._gui_layer.time_counter.start()
+        current_time = time.time()
+        
+        self._gui_layer.app.current_activity = self.activity_number
+        
         for timer in self._gui_layer.timer_list:
             if timer.activity_number == self.activity_number:
                 timer.is_running = True
                 timer.gui_start_button.config(state=TK_BUTTON_STATES[False])
-                # кстати, от засеривания кнопок я возможно уйду: так-то прикольно было бы перекинуть
-                # работающий таймер с одной позиции на другую
-                # кстати, можно вообще засеривать только текущую кнопку -- т.е. результат будет на 100%
-                #   противоположен тому, что было когда-то раньше xDDDD
-
-        # приходится вызывать это дело отдельно, чтобы не было промежуточной ситуации,
-        #   когда у всех таймеров все is_running равны False
-        # TODO уже походу эта механика не актуальна, т.к. tick() уже живёт по собственному флагу,
-        #   а не проверяет всякий раз все из_раннинги у каждого таймера
-        for timer in self._gui_layer.timer_list:
-            if timer.activity_number != self.activity_number:
+            else:
                 timer.is_running = False
                 timer.gui_start_button.config(state=TK_BUTTON_STATES[True])
-                timer.gui_combobox.config(state="readonly")
-                timer.gui_label.config(bg=self._gui_layer.DEFAULT_WIN_COLOR)
+                # кстати, от засеривания кнопок я возможно уйду: так-то прикольно было бы перекинуть
+                #   работающий таймер с одной позиции на другую
+                # кстати, можно вообще засеривать только текущую кнопку -- т.е. результат будет на 100%
+                #   противоположен тому, что было когда-то раньше xDDDD
+            timer.gui_combobox.config(state="readonly")
+            timer.gui_label.config(bg=self._gui_layer.DEFAULT_WIN_COLOR)
 
         self.gui_combobox.config(state="disable")
         self.gui_label.config(bg="green")
 
-        self._gui_layer.app.current_activity = self.activity_number
 
-        current_time = time.time()
         self._gui_layer.subsession.ending(current_time)
         self._gui_layer.subsession = Subsession(current_time, self._gui_layer.app)
