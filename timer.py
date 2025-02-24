@@ -87,9 +87,7 @@ class TimeTrackerTimer:
                 continue
 
             if other_timer.is_running:
-                is_same_activity = self.activity_number == other_timer.activity_number
-                self.is_running = is_same_activity
-                self.gui_start_button.config(state=TK_BUTTON_STATES[not is_same_activity])
+                self.is_running = (self.activity_number == other_timer.activity_number)
                 return
 
     @time_decorator
