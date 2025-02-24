@@ -101,33 +101,10 @@ class TimeTrackerTimer:
         if self.is_running:
             return
 
-        if all(
-            not timer.is_running for timer in self._gui_layer.timer_list
-        ):  # старт "с нуля", т.е. все таймеры стояли
-            self._starting_new_timer()
-        else:  # переключение таймера, т.е. какой-то таймер работал
-            self._switching_timer()
-
-    def _starting_new_timer(self) -> None:
-        for timer in self._gui_layer.timer_list:
-            if timer.activity_number == self.activity_number:
-                timer.is_running = True
-                timer.gui_start_button.config(state=TK_BUTTON_STATES[False])
-                # кстати, от засеривания кнопок я возможно уйду: так-то прикольно было бы перекинуть
-                # работающий таймер с одной позиции на другую
-                # кстати, можно вообще засеривать только текущую кнопку -- т.е. результат будет на 100%
-                #   противоположен тому, что было когда-то раньше xDDDD
-
-        self.gui_combobox.config(state="disable")
-        self.gui_label.config(bg="green")
-        self._gui_layer.retroactively_terminate_session_button.config(state=TK_BUTTON_STATES[False])
-
-        self._gui_layer.app.current_activity = self.activity_number
-        self._gui_layer.time_counter.start()
-        self._gui_layer.subsession = Subsession(time.time(), self._gui_layer.app)
-
-    def _switching_timer(self) -> None:
-        self._gui_layer.time_counter.stop()
+        was_timecounter_running: bool = False
+        if self._gui_layer.time_counter.is_running():
+            was_timecounter_running = True
+            self._gui_layer.time_counter.stop()
         self._gui_layer.time_counter.start()
         current_time = time.time()
         
@@ -150,6 +127,7 @@ class TimeTrackerTimer:
         self.gui_combobox.config(state="disable")
         self.gui_label.config(bg="green")
 
+        if was_timecounter_running:
+            self._gui_layer.subsession.ending(current_time)
 
-        self._gui_layer.subsession.ending(current_time)
         self._gui_layer.subsession = Subsession(current_time, self._gui_layer.app)
