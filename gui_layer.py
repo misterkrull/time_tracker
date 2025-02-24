@@ -102,9 +102,7 @@ class GuiLayer:
             text=SESSION_BUTTON_DICT[self.app.is_in_session],
             command=self._on_session_button_click,
         )
-        self.session_button.pack(
-            side=tk.LEFT, padx=2
-        )  # Отступ между кнопкой и метками
+        self.session_button.pack(side=tk.LEFT, padx=2)  # Отступ между кнопкой и метками
 
         # Кнопка "Задним числом"
         self.retroactively_terminate_session_button = tk.Button(
@@ -116,14 +114,12 @@ class GuiLayer:
         )
         self.retroactively_terminate_session_button.pack(side=tk.LEFT, padx=4, ipady=0)
         self.retroactively_terminate_session_button.config(
-            state=TK_BUTTON_STATES[
-                bool(self.app.amount_of_subsessions) and self.app.is_in_session
-            ]
+            state=TK_BUTTON_STATES[bool(self.app.amount_of_subsessions) and self.app.is_in_session]
         )
 
-    def _on_session_button_click(self):
+    def _on_session_button_click(self, retroactively_end_session: int | None = None):
         if self.app.is_in_session:
-            self.app.terminate_session()
+            self.app.terminate_session(retroactively_end_session)
         else:
             start_current_session_datetime = self.app.start_session()
             self.start_sess_datetime_label.config(text=start_current_session_datetime)
