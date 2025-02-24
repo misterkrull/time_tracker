@@ -2,17 +2,16 @@
 import time
 import tkinter as tk
 
-# TODO: import after gui separation
-# from time_tracker import ApplicationLogic
-from common_functions import duration_to_string, time_decorator, TIMERS
+from common_functions import duration_to_string, time_decorator, TIMERS, time_to_string
 from gui_constants import SESSION_BUTTON_DICT, SESSION_LABEL_DICT, TK_BUTTON_STATES
 from retroactively_termination_of_session import RetroactivelyTerminationOfSession
+from time_tracker import ApplicationLogic
 from timer import TimeTrackerTimer
 from time_counter import TimeCounter
 
 
 class GuiLayer:
-    def __init__(self, root, app):
+    def __init__(self, root: tk.Tk, app: ApplicationLogic):
         self.root = root
         self.app = app
 
@@ -117,20 +116,13 @@ class GuiLayer:
             state=TK_BUTTON_STATES[bool(self.app.amount_of_subsessions) and self.app.is_in_session]
         )
 
-    def _on_session_button_click(self, retroactively_end_session: int | None = None):
+    def _draw_session_state(self):
         if self.app.is_in_session:
-            self.app.terminate_session(retroactively_end_session)
-        else:
-            start_current_session_datetime = self.app.start_session()
-            self.start_sess_datetime_label.config(text=start_current_session_datetime)
+            self.start_sess_datetime_label.config(
+                text=time_to_string(self.app.current_session_start_time)
+            )
             self.current_session_number_label.config(text=self.app.session_number)
-            for timer in self.timer_list:
-                timer.gui_label.config(text="00:00:00")
 
-        # вот это всё безобразие может быть надо по обеим функциям распихать?
-        # тогда эти строчки повторяется по два раза, однако возможно будет нагляднее
-        # однако если оставлять так, как есть, то может быть смену флага is_in_session нужно будет
-        #   из обеих функций вытащить сюда, чтобы было наглядно видно, что флаг этот меняется, вообще-то
         self.session_label.config(text=SESSION_LABEL_DICT[self.app.is_in_session])
         self.session_button.config(text=SESSION_BUTTON_DICT[self.app.is_in_session])
 
@@ -139,9 +131,27 @@ class GuiLayer:
             timer.gui_start_button.config(state=TK_BUTTON_STATES[self.app.is_in_session])
         self.stop_button.config(state=TK_BUTTON_STATES[self.app.is_in_session])
 
+    def _terminate_session(self, end_time: int):
+        self.stop_timers()
+        session_duration = self.app.terminate_session(end_time)
+        self.start_sess_datetime_label.config(text=duration_to_string(session_duration))
+        self._draw_session_state()
+
+    def _start_session(self):
+        self.app.start_session()
+        for timer in self.timer_list:
+            timer.gui_label.config(text="00:00:00")
+        self._draw_session_state()
+
+    def _on_session_button_click(self):
+        if self.app.is_in_session:
+            self._terminate_session(int(time.time()))
+        else:
+            self._start_session()
+
     def _retroactively_terminate_session(self):
         RetroactivelyTerminationOfSession(
-            self.root, self.app.end_last_subsession, self._on_session_button_click
+            self.root, self.app.end_last_subsession, self._terminate_session
         )
 
     def _on_closing(self):

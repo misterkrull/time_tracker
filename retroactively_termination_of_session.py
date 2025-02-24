@@ -100,7 +100,7 @@ class RetroactivelyTerminationOfSession:
             return
 
         self._dialog_window.destroy()
-        self._startterminate_session(retroactively_end_session=end_current_session)
+        self._startterminate_session(end_current_session)
 
     def _on_cancel(self, _: tk.Event | None = None) -> None:
         self._dialog_window.destroy()

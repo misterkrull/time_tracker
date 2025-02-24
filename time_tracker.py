@@ -1,5 +1,4 @@
 import time
-import tkinter as tk
 
 from common_functions import (
     duration_to_string,
@@ -8,7 +7,6 @@ from common_functions import (
     datetime_to_sec,
 )
 from db_manager import DB
-from gui_layer import GuiLayer
 
 
 class ApplicationLogic:
@@ -23,7 +21,8 @@ class ApplicationLogic:
             self.session_number: int = 0
 
             self.init_to_start_sess_datetime_label: str = "--:--:--"
-            self._start_current_session: int = 0  # TODO нужно только для инициализации. оставляем?
+            # TODO нужно только для инициализации. оставляем?
+            self.current_session_start_time: int = 0
 
             self.durations_of_activities_in_current_session: dict[int, int] = {
                 i + 1: 0 for i in range(self._activity_count)
@@ -42,7 +41,7 @@ class ApplicationLogic:
                 if self.is_in_session
                 else duration_current_session_HMS
             )
-            self._start_current_session: int = datetime_to_sec(start_current_session_datetime)
+            self.current_session_start_time: int = datetime_to_sec(start_current_session_datetime)
 
             self.durations_of_activities_in_current_session: dict[int, int] = {
                 i + 1: v
@@ -66,40 +65,27 @@ class ApplicationLogic:
         # да, тут логичнее было бы проверить количество подсессий во всей таблице subsessions!
         # но у нас такого параметра нет, поэтому проверяем как можем
 
-    def start_session(self) -> str:
+    def start_session(self) -> None:
         self.is_in_session = True
         self.session_number += 1
         for activity in self.durations_of_activities_in_current_session.keys():
             self.durations_of_activities_in_current_session[activity] = 0
         self.duration_of_all_activities = 0
         self.amount_of_subsessions = 0
-        self._start_current_session: int = int(time.time())
-        start_current_session_datetime = time_to_string(self._start_current_session)
+        self.current_session_start_time: int = int(time.time())
+        current_session_start_time_str = time_to_string(self.current_session_start_time)
 
         self.db.create_new_session(
-            self.session_number, start_current_session_datetime, self._activity_count
+            self.session_number, current_session_start_time_str, self._activity_count
         )
-        return start_current_session_datetime
 
-    def terminate_session(self, retroactively_end_session: int | None = None) -> None:
+    def terminate_session(self, end_time: int) -> int:
         self.is_in_session = False
-
-        if retroactively_end_session is None:
-            gui.stop_timers()
-            end_current_session = int(time.time())
-        else:
-            end_current_session = retroactively_end_session
-        duration_current_session = end_current_session - self._start_current_session
+        duration_current_session = end_time - self.current_session_start_time
         duration_current_session_HMS = duration_to_string(duration_current_session)
         self.db.complete_new_session(
-            self.session_number, time_to_string(end_current_session), duration_current_session_HMS
+            self.session_number,
+            time_to_string(end_time),
+            duration_current_session_HMS,
         )
-
-        gui.start_sess_datetime_label.config(text=duration_current_session_HMS)
-
-
-if __name__ == "__main__":
-    app = ApplicationLogic()
-    root = tk.Tk()
-    gui = GuiLayer(root, app)
-    root.mainloop()
+        return duration_current_session
