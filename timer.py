@@ -99,6 +99,11 @@ class TimeTrackerTimer:
         Запускается при нажатии на кнопку "Старт <timer.id>"
         """
         if self.is_running:
+            for timer in self._gui_layer.timer_list:
+                timer.gui_combobox.config(state="readonly")
+                timer.gui_label.config(bg=self._gui_layer.DEFAULT_WIN_COLOR)
+            self.gui_combobox.config(state="disable")
+            self.gui_label.config(bg="green")
             return
 
         was_timecounter_running: bool = False
@@ -113,14 +118,8 @@ class TimeTrackerTimer:
         for timer in self._gui_layer.timer_list:
             if timer.activity_number == self.activity_number:
                 timer.is_running = True
-                timer.gui_start_button.config(state=TK_BUTTON_STATES[False])
             else:
                 timer.is_running = False
-                timer.gui_start_button.config(state=TK_BUTTON_STATES[True])
-                # кстати, от засеривания кнопок я возможно уйду: так-то прикольно было бы перекинуть
-                #   работающий таймер с одной позиции на другую
-                # кстати, можно вообще засеривать только текущую кнопку -- т.е. результат будет на 100%
-                #   противоположен тому, что было когда-то раньше xDDDD
             timer.gui_combobox.config(state="readonly")
             timer.gui_label.config(bg=self._gui_layer.DEFAULT_WIN_COLOR)
 
