@@ -97,36 +97,28 @@ class TimeTrackerTimer:
     def _start_timer(self) -> None:
         """
         Запускается при нажатии на кнопку "Старт <timer.id>"
-        """
+        """        
+        for timer in self._gui_layer.timer_list:
+            timer.gui_combobox.config(state="readonly")
+            timer.gui_label.config(bg=self._gui_layer.DEFAULT_WIN_COLOR)
+        self.gui_combobox.config(state="disable")
+        self.gui_label.config(bg="green")
+        
         if self.is_running:
-            for timer in self._gui_layer.timer_list:
-                timer.gui_combobox.config(state="readonly")
-                timer.gui_label.config(bg=self._gui_layer.DEFAULT_WIN_COLOR)
-            self.gui_combobox.config(state="disable")
-            self.gui_label.config(bg="green")
             return
 
         was_timecounter_running: bool = False
         if self._gui_layer.time_counter.is_running():
             was_timecounter_running = True
             self._gui_layer.time_counter.stop()
+            
         self._gui_layer.time_counter.start()
         current_time = time.time()
         
         self._gui_layer.app.current_activity = self.activity_number
-        
         for timer in self._gui_layer.timer_list:
-            if timer.activity_number == self.activity_number:
-                timer.is_running = True
-            else:
-                timer.is_running = False
-            timer.gui_combobox.config(state="readonly")
-            timer.gui_label.config(bg=self._gui_layer.DEFAULT_WIN_COLOR)
-
-        self.gui_combobox.config(state="disable")
-        self.gui_label.config(bg="green")
+            timer.is_running = (timer.activity_number == self.activity_number)
 
         if was_timecounter_running:
             self._gui_layer.subsession.ending(current_time)
-
         self._gui_layer.subsession = Subsession(current_time, self._gui_layer.app)
