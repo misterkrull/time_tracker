@@ -13,14 +13,24 @@ class TimeCounter:
         self._tkinter_task_id = None
         self._seconds = 0
 
-    def start(self) -> None:
+    def start(self) -> int:
+        """
+        Запускает time_counter
+        Возвращает время его старта (в int)
+        """
         self._start_time = time.time()
         self._seconds = 0
         self._start_tick()
+        return int(self._start_time)
 
-    def stop(self) -> None:
+    def stop(self) -> int:
+        """
+        Останавливает time_counter
+        Возращает количество секунд, которые он насчитал (в int)
+        """
         self._tk_root.after_cancel(self._tkinter_task_id)
         self._tkinter_task_id = None
+        return self._seconds
 
     def is_running(self):
         return self._tkinter_task_id is not None
@@ -46,5 +56,5 @@ class TimeCounter:
             threading.get_ident(),
         )
         self._seconds += 1
-        self._on_tick_function()
+        self._on_tick_function(self._seconds)
         self._start_tick()

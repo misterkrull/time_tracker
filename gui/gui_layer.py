@@ -176,8 +176,8 @@ class GuiLayer:
         for timer in self.timer_list:
             timer.is_running = False
 
-        self.time_counter.stop()
-        self.subsession.ending(time.time())
+        subsession_duration: int = self.time_counter.stop()
+        self.subsession.ending(subsession_duration)
 
         self.retroactively_terminate_session_button.config(state=TK_BUTTON_STATES[True])
         for timer in self.timer_list:
@@ -185,14 +185,9 @@ class GuiLayer:
             timer.gui_start_button.config(state="normal")
             timer.gui_label.config(bg=self.DEFAULT_WIN_COLOR)
 
-    def on_time_counter_tick(self):
-        self.app.durations_of_activities_in_current_session[self.app.current_activity] += 1
-        self.app.duration_of_all_activities += 1
-
+    def on_time_counter_tick(self, current_duration: int):
         for timer in self.timer_list:
             if timer.is_running:
-                timer.gui_label.config(
-                    text=duration_to_string(
-                        self.app.durations_of_activities_in_current_session[timer.activity_number]
-                    )
-                )
+                timer.gui_label.config(text=duration_to_string(
+                    self.app.durations_of_activities_in_current_session[timer.activity_number] + current_duration
+                ))
