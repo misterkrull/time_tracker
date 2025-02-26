@@ -24,14 +24,14 @@ def duration_to_string(sec: int | float) -> str:
     return f"{hours:02}:{minutes:02}:{seconds:02}"
 
 
+def parse_duration(duration_str: str) -> int:
+    hours, minutes, seconds = map(int, duration_str.split(":"))
+    return 3600 * hours + 60 * minutes + seconds
+
+
 def time_to_string(sec: int | float) -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(sec))
 
 
-def time_to_sec(time_HMS: str) -> int:
-    hours, minutes, seconds = map(int, time_HMS.split(":"))
-    return 3600 * hours + 60 * minutes + seconds
-
-
-def datetime_to_sec(datetime_Ymd_HMS: str) -> int:
-    return int(datetime.strptime(datetime_Ymd_HMS, "%Y-%m-%d %H:%M:%S").timestamp())
+def parse_time(datetime_str: str) -> int:
+    return int(datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S").timestamp())

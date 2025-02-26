@@ -76,7 +76,7 @@ class GuiLayer:
 
         # Создаем метку для отображения номера текущей сессии
         self.current_session_number_label = tk.Label(
-            top_frame, text=self.app.session_number, font=("Helvetica", 18)
+            top_frame, text=self.app.session.id, font=("Helvetica", 18)
         )
         self.current_session_number_label.pack(side=tk.LEFT, padx=10)  # Отступ между метками
 
@@ -87,9 +87,16 @@ class GuiLayer:
         self.session_label.pack(side=tk.LEFT, padx=2)
 
         # Метка для времени начала сессии
+        start_sess_datetime_label_text = {
+            True: time_to_string(self.app.session.start_time)
+            if self.app.session.start_time > 0
+            else "--:--:--",
+            False: duration_to_string(self.app.session.duration),
+        }[self.app.is_in_session]
+
         self.start_sess_datetime_label = tk.Label(
             top_frame,
-            text=self.app.init_to_start_sess_datetime_label,
+            text=start_sess_datetime_label_text,
             font=("Helvetica", 14),
         )
         self.start_sess_datetime_label.pack(side=tk.LEFT, padx=2)
@@ -118,10 +125,8 @@ class GuiLayer:
 
     def _draw_session_state(self):
         if self.app.is_in_session:
-            self.start_sess_datetime_label.config(
-                text=time_to_string(self.app.current_session_start_time)
-            )
-            self.current_session_number_label.config(text=self.app.session_number)
+            self.start_sess_datetime_label.config(text=time_to_string(self.app.session.start_time))
+            self.current_session_number_label.config(text=self.app.session.id)
 
         self.session_label.config(text=SESSION_LABEL_DICT[self.app.is_in_session])
         self.session_button.config(text=SESSION_BUTTON_DICT[self.app.is_in_session])
@@ -188,6 +193,9 @@ class GuiLayer:
     def on_time_counter_tick(self, current_duration: int):
         for timer in self.timer_list:
             if timer.is_running:
-                timer.gui_label.config(text=duration_to_string(
-                    self.app.durations_of_activities_in_current_session[timer.activity_number] + current_duration
-                ))
+                timer.gui_label.config(
+                    text=duration_to_string(
+                        self.app.session.activity_durations[timer.activity_number - 1]
+                        + current_duration
+                    )
+                )

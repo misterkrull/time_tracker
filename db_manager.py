@@ -14,7 +14,7 @@ class DB:
         self._conn = sqlite3.connect(os.path.join(MY_PATH, DB_FILENAME))
         self._cur = self._conn.cursor()
         self._activity_count: int = None
-        
+
         # создаём таблицу activities
         # сперва проверяем, есть ли такая; если нет - создаём и заполняем стартовыми данными
         # именно из-за заполнений стартовыми данными приходится такое городить вместо того,
@@ -158,7 +158,7 @@ class DB:
             self._cur.execute("SELECT COUNT(*) FROM activities")
             self._activity_count = self._cur.fetchall()[0][0]
         return self._activity_count
-        
+
     def get_activity_names(self) -> dict[int, str]:
         self._cur.execute("SELECT id, title FROM activities")
         res = {el[0]: el[1] for el in self._cur.fetchall()}

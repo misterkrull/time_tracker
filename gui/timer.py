@@ -1,4 +1,3 @@
-import time
 import tkinter as tk
 from tkinter import ttk
 
@@ -37,7 +36,7 @@ class TimeTrackerTimer:
         self.gui_label = tk.Label(
             timer_frame,
             text=duration_to_string(
-                self._gui_layer.app.durations_of_activities_in_current_session[self.activity_number]
+                self._gui_layer.app.session.activity_durations[self.activity_number - 1]
             ),
             font=("Helvetica", 36),
         )
@@ -70,15 +69,12 @@ class TimeTrackerTimer:
         )
         self.gui_start_button.pack(pady=5)
 
-    # TODO вернуть тут аннотацию
-    # def _select_activity(self, _: tk.Event[ttk.Combobox]):
-    def _select_activity(self, _):
+    def _select_activity(self, _: tk.Event):
         # Combobox считает с 0, а мы с 1
         self.activity_number = self.gui_combobox.current() + 1
-
         self.gui_label.config(
             text=duration_to_string(
-                self._gui_layer.app.durations_of_activities_in_current_session[self.activity_number]
+                self._gui_layer.app.session.activity_durations[self.activity_number - 1]
             )
         )
 
