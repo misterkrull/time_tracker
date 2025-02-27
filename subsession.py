@@ -14,15 +14,15 @@ class Subsession:
         self._app.session.activity_durations[self._current_activity - 1] += duration
         self._app.end_last_subsession = end_time
 
+        assert self._app.session.id is not None, "session.id is None, возможно сессия не началась"
+
         # да, здесь нужна двойная функция: чтобы сразу два запроса к БД одним махом пульнуть
         # экономия времени существенная! замерял!
         self._app.db.add_new_subsession_and_update_current_session(
-            self._app.session.id,
-            self._current_activity,
-            time_to_string(self._start_time),
-            time_to_string(end_time),
-            duration_to_string(duration),
-            self._app.amount_of_subsessions,
-            duration_to_string(self._app.session.activity_duration_total),
-            duration_to_string(self._app.session.activity_durations[self._current_activity - 1]),
+            current_activity=self._current_activity,
+            start_subs_datetime=time_to_string(self._start_time),
+            end_subs_datetime=time_to_string(end_time),
+            subs_duration=duration_to_string(duration),
+            session=self._app.session,
+            amount_of_subsessions=self._app.amount_of_subsessions,
         )

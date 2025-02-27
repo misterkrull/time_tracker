@@ -1,12 +1,23 @@
 import os
 import sqlite3
 
-from common_functions import TIMERS
+from session import Session
+from common_functions import TIMERS, duration_to_string, time_to_string
 
 MY_PATH = os.path.dirname(os.path.abspath(__file__))
 DB_FILENAME = "time_tracker.db"
 DEFAULT_ACTIVITIES = ["IT", "Английский", "Уборка", "Йога", "Помощь маме"]
 DEFAULT_APP_STATE = {f"activity_in_timer{timer}": ("INTEGER", timer) for timer in TIMERS}
+
+
+def _serialize_session(session: Session) -> tuple[str]:
+    return (
+        time_to_string(session.start_time),
+        time_to_string(session.start_time + session.duration),
+        duration_to_string(session.duration),
+        duration_to_string(session.activity_duration_total),
+        *[duration_to_string(act_duration) for act_duration in session.activity_durations],
+    )
 
 
 class DB:
@@ -77,81 +88,73 @@ class DB:
     def __del__(self):
         self._conn.close()
 
-    def complete_new_session(
-        self,
-        session_number: int,
-        end_sess_datetime: str,
-        sess_duration_total: str,
-    ) -> None:
-        self._cur.execute(
-            "UPDATE sessions SET end_sess_datetime = ?, sess_duration_total = ? WHERE id = ?",
-            (end_sess_datetime, sess_duration_total, session_number),
-        )
-        self._conn.commit()
-
     # да, здесь нужна двойная функция: чтобы сразу два запроса к БД одним махом пульнуть
     # экономия времени существенная! замерял!
     def add_new_subsession_and_update_current_session(
         self,
-        session_number: int,
         current_activity: int,
         start_subs_datetime: str,
         end_subs_datetime: str,
         subs_duration: str,
-        amount_of_subsessions: int,
-        sess_duration_total_acts_all: str,
-        sess_duration_total_act_sessnum: str,
+        session: Session,
+        amount_of_subsessions: int,  # TODO выкинуть этот костыль
     ) -> None:
         self._cur.execute(
             "INSERT INTO subsessions VALUES (NULL, ?, ?, ?, ?, ?)",
             (
-                session_number,
+                session.id,
                 current_activity,
                 start_subs_datetime,
                 end_subs_datetime,
                 subs_duration,
             ),
         )
-        # TODO сделать проверку соответствия session_number очереденому primary key: видал, что они расходились
-        self._cur.execute(
-            "UPDATE sessions SET "
-            + "amount_of_subsessions = ?, "
-            + "sess_duration_total_acts_all = ?, "
-            + f"sess_duration_total_act{current_activity} = ? "
-            + "WHERE id = ?",
-            (
-                amount_of_subsessions,
-                sess_duration_total_acts_all,
-                sess_duration_total_act_sessnum,
-                session_number,
-            ),
-        )
+        self.update_session(session, amount_of_subsessions, need_commit=False)
         self._conn.commit()
         # print("В таблицу susbsessions добавили строку: ")
         # print(session_number, current_activity, start_subs_datetime, end_subs_datetime, subs_duration)
 
-    # TODO сделать проверку соответствия session_number очередному primary key
-    def create_new_session(
-        self,
-        session_number: int,  # да, вот его наверное как-то надо использовать, чтобы проверить соответствие
-        start_current_session: str,
-        activity_count: int,  # TODO наверное надо этот параметр из класса DB получать, так логичнее
-    ) -> None:
-        sql_query = (
-            "INSERT INTO sessions VALUES ("
-            + "NULL, ?, '---', '00:00:00', 0, '00:00:00', "
-            + ", ".join(["'00:00:00'"] * activity_count)
-            + ")"
-        )
-        self._cur.execute(sql_query, (start_current_session,))
-        self._conn.commit()
+    def write_session(self, session: Session) -> int:
+        """Вставляет сессию в базу и возвращает id записи."""
 
-        # TODO переделать: сразу сделать SQL-запрос. который считает
+        activities_placeholder = ", ?" * len(session.activity_durations)
+        sql_query = f"INSERT INTO sessions VALUES (NULL, ?, ?, ?, 0, ?{activities_placeholder})"
+        self._cur.execute(sql_query, _serialize_session(session))
+        res = self._cur.lastrowid
+        self._conn.commit()
+        return res
+
+    def update_session(
+        self,
+        session: Session,
+        amount_of_subsessions: int,  # TODO выкинуть этот ненужный костыль из базы
+        need_commit: bool = True,
+    ) -> None:
+        activities_placeholder = ",".join(
+            f"sess_duration_total_act{index + 1} = ?"
+            for index in range(len(session.activity_durations))
+        )
+
+        self._cur.execute(
+            "UPDATE sessions SET "
+            "start_sess_datetime = ?,"
+            "end_sess_datetime = ?,"
+            "sess_duration_total = ?,"
+            "sess_duration_total_acts_all = ?,"
+            f"{activities_placeholder},"
+            "amount_of_subsessions = ?"
+            "WHERE id = ?",
+            (*_serialize_session(session), amount_of_subsessions, session.id),
+        )
+
+        if need_commit:
+            self._conn.commit()
 
     def get_amount_of_subsessions(self, session_number: int) -> int:
-        self._cur.execute("SELECT * FROM subsessions WHERE session_number=?", (session_number,))
-        rows = self._cur.fetchall()
-        return len(rows)
+        self._cur.execute(
+            "SELECT COUNT(*) FROM subsessions WHERE session_number=?", (session_number,)
+        )
+        return self._cur.fetchall()[0][0]
 
     def get_activity_count(self) -> int:
         if self._activity_count is None:

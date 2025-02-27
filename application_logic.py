@@ -1,30 +1,11 @@
-from dataclasses import InitVar, dataclass, field
 import time
 
+from session import Session
 from common_functions import (
-    duration_to_string,
     parse_duration,
-    time_to_string,
     parse_time,
 )
 from db_manager import DB
-
-
-@dataclass
-class Session:
-    id: int = 0
-    start_time: int = 0
-    duration: int = 0
-    activity_durations: list[int] = field(default_factory=list)
-    activity_count: InitVar[int] = 0
-
-    def __post_init__(self, activity_count: int):
-        if not self.activity_durations:
-            self.activity_durations = [0] * activity_count
-
-    @property
-    def activity_duration_total(self):
-        return sum(self.activity_durations)
 
 
 class ApplicationLogic:
@@ -38,7 +19,6 @@ class ApplicationLogic:
         if last_session is None:  # случай, если у нас ещё не было ни одной сессии (т.е. новая БД)
             self.is_in_session: bool = False
             self.session = Session(activity_count=self._activity_count)
-
         else:
             self.is_in_session: bool = last_session[2] == "---"
             self.session = Session(
@@ -62,22 +42,13 @@ class ApplicationLogic:
     def start_session(self) -> None:
         self.is_in_session = True
         self.session = Session(
-            id=self.session.id + 1,
             start_time=int(time.time()),
             activity_count=self._activity_count,
         )
-        # TODO: сделать нормальную загрузку и сохранение в базу объекта Session целиком
-        self.db.create_new_session(
-            self.session.id, time_to_string(self.session.start_time), self._activity_count
-        )
+        self.session.id = self.db.write_session(self.session)
 
     def terminate_session(self, end_time: int) -> int:
         self.is_in_session = False
         self.session.duration = end_time - self.session.start_time
-        duration_current_session_HMS = duration_to_string(self.session.duration)
-        self.db.complete_new_session(
-            self.session.id,
-            time_to_string(end_time),
-            duration_current_session_HMS,
-        )
+        self.db.update_session(self.session, self.amount_of_subsessions)
         return self.session.duration
