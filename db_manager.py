@@ -1,7 +1,7 @@
 import os
 import sqlite3
 
-from common_functions import TIMERS
+from gui.gui_constants import TIMERS
 
 MY_PATH = os.path.dirname(os.path.abspath(__file__))
 DB_FILENAME = "time_tracker.db"

@@ -1,8 +1,6 @@
 from datetime import datetime
 import time
 
-TIMERS = [1, 2, 3, 4, 5]
-
 
 def print_performance(func):
     def wrapper(*args, **kwargs):

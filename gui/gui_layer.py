@@ -2,8 +2,9 @@
 import time
 import tkinter as tk
 
-from common_functions import duration_to_string, print_performance, TIMERS, time_to_string
-from gui.gui_constants import SESSION_BUTTON_DICT, SESSION_LABEL_DICT, TK_BUTTON_STATES
+from common_functions import duration_to_string, print_performance, time_to_string
+from gui.gui_constants import MAIN_WINDOW_X, MAIN_WINDOW_Y, SESSION_BUTTON_DICT, SESSION_LABEL_DICT, TIMERS, TK_BUTTON_STATES
+from gui.manual_input_of_subsession import ManualInputOfSubsession
 from gui.retroactively_termination_of_session import RetroactivelyTerminationOfSession
 from gui.timer import TimeTrackerTimer
 from application_logic import ApplicationLogic
@@ -16,7 +17,8 @@ class GuiLayer:
         self.app = app
 
         self.root.title("Мой трекер")
-        self.root.geometry("678x250")  # Устанавливаем размер окна
+        self.root.geometry(f"{MAIN_WINDOW_X}x{MAIN_WINDOW_Y}")  # Устанавливаем размер окна
+        self.root.resizable(False, False)  # Запрещаем изменение размеров
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)  # определяем метод закрытия окна
         self.DEFAULT_WIN_COLOR = self.root.cget("background")
 
@@ -26,7 +28,7 @@ class GuiLayer:
 
         app_state: dict[str, int] = self.app.db.load_app_state()
 
-        timer_activity_names: dict[int, str] = {
+        self._timer_activity_names: dict[int, str] = {
             k: f"{k}. {v}" for (k, v) in self.app.db.get_activity_names().items()
         }
 
@@ -44,11 +46,11 @@ class GuiLayer:
                     app_state[f"activity_in_timer{timer_id}"],
                     self,
                     main_frame,
-                    timer_activity_names,
+                    self._timer_activity_names,
                 )
             )
 
-        # Кнопка "Стоп" внизу
+        # Кнопка "Стоп"
         self.stop_button = tk.Button(
             self.root,
             text="Стоп",
@@ -59,6 +61,20 @@ class GuiLayer:
             state=TK_BUTTON_STATES[self.app.is_in_session],
         )
         self.stop_button.pack(pady=10)
+
+        # Кнопка "Ручной ввод подсессии"
+        self.manual_input_button = tk.Button(
+            self.root,
+            text="Ручной ввод\nподсессии",
+            command=self._manual_input_of_subsession,
+            font=("Helvetica", 8),
+            width=12,
+        )
+        self.manual_input_button.place(x=MAIN_WINDOW_X - 95, y=200)
+
+        # Нужно для разработки для моментального запуска окна
+        self.root.update()
+        self.manual_input_button.invoke()
 
         # ГОРЯЧИЕ КЛАВИШИ -  имитируем нажатие нарисованных кнопок
         # keyboard.add_hotkey("Alt+F10", self.start_button[1].invoke)
@@ -153,6 +169,9 @@ class GuiLayer:
         RetroactivelyTerminationOfSession(
             self.root, self.app.end_last_subsession, self._terminate_session
         )
+
+    def _manual_input_of_subsession(self):
+        ManualInputOfSubsession(self.root, self._timer_activity_names)
 
     def _on_closing(self):
         self.stop_timers()
