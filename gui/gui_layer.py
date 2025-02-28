@@ -56,7 +56,7 @@ class GuiLayer:
             font=("Helvetica", 14),
             width=30,
             height=1,
-            state=TK_BUTTON_STATES[self.app.is_in_session],
+            state=TK_BUTTON_STATES[self.app.session.is_active()],
         )
         self.stop_button.pack(pady=10)
 
@@ -82,7 +82,7 @@ class GuiLayer:
 
         # Метка для текста "Началась:"/"Длилась:"
         self.session_label = tk.Label(
-            top_frame, text=SESSION_LABEL_DICT[self.app.is_in_session], font=("Helvetica", 14)
+            top_frame, text=SESSION_LABEL_DICT[self.app.session.is_active()], font=("Helvetica", 14)
         )
         self.session_label.pack(side=tk.LEFT, padx=2)
 
@@ -92,7 +92,7 @@ class GuiLayer:
             if self.app.session.start_time > 0
             else "--:--:--",
             False: duration_to_string(self.app.session.duration),
-        }[self.app.is_in_session]
+        }[self.app.session.is_active()]
 
         self.start_sess_datetime_label = tk.Label(
             top_frame,
@@ -105,7 +105,7 @@ class GuiLayer:
         self.session_button = tk.Button(
             top_frame,
             font=("Helvetica", 12),
-            text=SESSION_BUTTON_DICT[self.app.is_in_session],
+            text=SESSION_BUTTON_DICT[self.app.session.is_active()],
             command=self._on_session_button_click,
         )
         self.session_button.pack(side=tk.LEFT, padx=2)  # Отступ между кнопкой и метками
@@ -115,26 +115,28 @@ class GuiLayer:
             top_frame,
             font=("Helvetica", 8),
             text="Задним\nчислом",
-            state=TK_BUTTON_STATES[self.app.is_in_session],
+            state=TK_BUTTON_STATES[self.app.session.is_active()],
             command=self._retroactively_terminate_session,
         )
         self.retroactively_terminate_session_button.pack(side=tk.LEFT, padx=4, ipady=0)
         self.retroactively_terminate_session_button.config(
-            state=TK_BUTTON_STATES[bool(self.app.amount_of_subsessions) and self.app.is_in_session]
+            state=TK_BUTTON_STATES[
+                bool(self.app.amount_of_subsessions) and self.app.session.is_active()
+            ]
         )
 
     def _draw_session_state(self):
-        if self.app.is_in_session:
+        if self.app.session.is_active():
             self.start_sess_datetime_label.config(text=time_to_string(self.app.session.start_time))
             self.current_session_number_label.config(text=self.app.session.id)
 
-        self.session_label.config(text=SESSION_LABEL_DICT[self.app.is_in_session])
-        self.session_button.config(text=SESSION_BUTTON_DICT[self.app.is_in_session])
+        self.session_label.config(text=SESSION_LABEL_DICT[self.app.session.is_active()])
+        self.session_button.config(text=SESSION_BUTTON_DICT[self.app.session.is_active()])
 
         self.retroactively_terminate_session_button.config(state=TK_BUTTON_STATES[False])
         for timer in self.timer_list:
-            timer.gui_start_button.config(state=TK_BUTTON_STATES[self.app.is_in_session])
-        self.stop_button.config(state=TK_BUTTON_STATES[self.app.is_in_session])
+            timer.gui_start_button.config(state=TK_BUTTON_STATES[self.app.session.is_active()])
+        self.stop_button.config(state=TK_BUTTON_STATES[self.app.session.is_active()])
 
     def _terminate_session(self, end_time: int):
         self.stop_timers()
@@ -149,7 +151,7 @@ class GuiLayer:
         self._draw_session_state()
 
     def _on_session_button_click(self):
-        if self.app.is_in_session:
+        if self.app.session.is_active():
             self._terminate_session(int(time.time()))
         else:
             self._start_session()

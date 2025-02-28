@@ -1,10 +1,7 @@
 import time
 
 from session import Session
-from common_functions import (
-    parse_duration,
-    parse_time,
-)
+from common_functions import parse_time
 from db_manager import DB
 
 
@@ -14,19 +11,9 @@ class ApplicationLogic:
         # NOTE: тут какая-то дичь, номера активностей считаются с 1, нужно это абстрагировать, чтобы не думать о них
         self.current_activity: int = 1
         self._activity_count: int = self.db.get_activity_count()
-
-        last_session: tuple | None = self.db.get_last_session()
-        if last_session is None:  # случай, если у нас ещё не было ни одной сессии (т.е. новая БД)
-            self.is_in_session: bool = False
+        self.session: Session | None = self.db.get_last_session()
+        if self.session is None:  # случай, если у нас ещё не было ни одной сессии (т.е. новая БД)
             self.session = Session(activity_count=self._activity_count)
-        else:
-            self.is_in_session: bool = last_session[2] == "---"
-            self.session = Session(
-                id=last_session[0],
-                start_time=parse_time(last_session[1]),
-                duration=parse_duration(last_session[3]),
-                activity_durations=list(map(parse_duration, last_session[-self._activity_count :])),
-            )
 
         self.amount_of_subsessions: int = self.db.get_amount_of_subsessions(self.session.id)
         # print("Количество подсессий:", self.amount_of_subsessions)
@@ -40,7 +27,6 @@ class ApplicationLogic:
         # но у нас такого параметра нет, поэтому проверяем как можем
 
     def start_session(self) -> None:
-        self.is_in_session = True
         self.session = Session(
             start_time=int(time.time()),
             activity_count=self._activity_count,
@@ -48,7 +34,6 @@ class ApplicationLogic:
         self.session.id = self.db.write_session(self.session)
 
     def terminate_session(self, end_time: int) -> int:
-        self.is_in_session = False
-        self.session.duration = end_time - self.session.start_time
+        self.session.end_time = end_time
         self.db.update_session(self.session, self.amount_of_subsessions)
         return self.session.duration

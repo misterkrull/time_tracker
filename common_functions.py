@@ -25,12 +25,7 @@ def duration_to_string(sec: int | float) -> str:
 
 
 def parse_duration(duration_str: str) -> int:
-    try:
-        hours, minutes, seconds = map(int, duration_str.split(":"))
-    except ValueError:
-        print(f"Warning: Не могу спарсить интервал {duration_str}")
-        return 0
-
+    hours, minutes, seconds = map(int, duration_str.split(":"))
     return 3600 * hours + 60 * minutes + seconds
 
 
@@ -39,8 +34,4 @@ def time_to_string(sec: int | float) -> str:
 
 
 def parse_time(datetime_str: str) -> int:
-    try:
-        return int(datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S").timestamp())
-    except ValueError:
-        print(f"Warning: Не могу спарсить время {datetime_str}")
-        return 0
+    return int(datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S").timestamp())

@@ -2,22 +2,61 @@ import os
 import sqlite3
 
 from session import Session
-from common_functions import TIMERS, duration_to_string, time_to_string
+from common_functions import TIMERS, duration_to_string, parse_duration, parse_time, time_to_string
 
 MY_PATH = os.path.dirname(os.path.abspath(__file__))
 DB_FILENAME = "time_tracker.db"
 DEFAULT_ACTIVITIES = ["IT", "Английский", "Уборка", "Йога", "Помощь маме"]
 DEFAULT_APP_STATE = {f"activity_in_timer{timer}": ("INTEGER", timer) for timer in TIMERS}
 
+# Значение "---" использовалось в старой версии базы для обозначения конца не завершенной сессии
+_LEGACY_ZERO_TIME_STRING_VALUE = "---"
+
 
 def _serialize_session(session: Session) -> tuple[str]:
     return (
         time_to_string(session.start_time),
-        time_to_string(session.start_time + session.duration),
+        time_to_string(session.end_time),
         duration_to_string(session.duration),
         duration_to_string(session.activity_duration_total),
         *[duration_to_string(act_duration) for act_duration in session.activity_durations],
     )
+
+
+def _deserialize_session(
+    id: int,
+    start_time_str: str,
+    end_time_str: str,
+    duration_str: str,
+    _amount_of_subsessions: int,
+    activity_duration_total_str: str,
+    *activity_durations_str: str,
+) -> Session:
+    start_time = parse_time(start_time_str)
+    end_time = (
+        parse_time(end_time_str) if end_time_str != _LEGACY_ZERO_TIME_STRING_VALUE else start_time
+    )
+    session = Session(
+        id=id,
+        start_time=start_time,
+        end_time=end_time,
+        activity_durations=list(map(parse_duration, activity_durations_str)),
+    )
+    if parse_duration(duration_str) != session.duration:
+        print(
+            "Warning. База данных не в консистентном состоянии!\n"
+            f"Длительность сессии {duration_str} "
+            f"не совпадает с фактической {duration_to_string(session.duration)}."
+        )
+
+    if parse_duration(activity_duration_total_str) != session.activity_duration_total:
+        print(
+            "Warning. База данных не в консистентном состоянии!\n"
+            f"Длительность активностей в сессии {activity_duration_total_str} "
+            f"не совпадает с фактической {duration_to_string(session.activity_duration_total)}."
+        )
+
+    return session
 
 
 class DB:
@@ -114,6 +153,14 @@ class DB:
         # print("В таблицу susbsessions добавили строку: ")
         # print(session_number, current_activity, start_subs_datetime, end_subs_datetime, subs_duration)
 
+    def get_last_session(self) -> Session | None:
+        """
+        Возвращает последнюю сессию, если таблица sessions не пуста.
+        Либо возвращает None, если таблица sessions пуста.
+        """
+        self._cur.execute("SELECT * FROM sessions ORDER BY id DESC LIMIT 1")
+        return _deserialize_session(*self._cur.fetchone())
+
     def write_session(self, session: Session) -> int:
         """Вставляет сессию в базу и возвращает id записи."""
 
@@ -188,14 +235,6 @@ class DB:
         # мы тут не проверяем нашу таблицу на пустоту.
         # вообще такого возникнуть не должно: при пустой таблице параметр self.amount_of_subsessions будет равен 0
         # а эта функция вызывается только если этот параметр больше 0
-
-    def get_last_session(self) -> tuple | None:
-        """
-        Возвращает последнюю запись в таблице sessions, если таблица sessions не пуста
-        Либо возвращает None, если таблица sessions пуста
-        """
-        self._cur.execute("SELECT * FROM sessions ORDER BY id DESC LIMIT 1")
-        return self._cur.fetchone()
 
     def load_app_state(self) -> dict[str, int]:
         self._cur.execute("SELECT * FROM app_state")

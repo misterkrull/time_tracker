@@ -65,7 +65,7 @@ class TimeTrackerTimer:
             font=("Helvetica", 14),
             width=10,
             height=1,
-            state=TK_BUTTON_STATES[self._gui_layer.app.is_in_session],
+            state=TK_BUTTON_STATES[self._gui_layer.app.session.is_active()],
         )
         self.gui_start_button.pack(pady=5)
 
