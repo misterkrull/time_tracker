@@ -2,22 +2,75 @@ import enum
 import time
 import tkinter as tk
 from tkinter import messagebox, ttk
+from typing import Callable
 
 from common_functions import datetime_to_sec, duration_to_string, time_to_sec, time_to_string
+from gui.gui_constants import BACKGROUND_COLOR
 
 class CheckStatus(enum.Enum):
     failed = 0
     unchanged = 1
     changed = 2
 
+CONVERTION = {
+    "start": time_to_string,
+    "duration": duration_to_string,
+    "end": time_to_string
+}
+
+
+class Field:
+    def __init__(
+        self,
+        parent_window: tk.Toplevel,
+        name: str,
+        label_text: str,
+        pos_y: int,
+        init_value: int,
+        conversion: Callable[[int], str],
+        error_message: str,
+        check_input: Callable,
+        chosen_radiobutton: str,
+        changing_radiobutton: Callable
+    ):
+        self._label = tk.Label(
+            parent_window,
+            anchor='w',
+            text=label_text,
+            font=("Segoe UI", 10)
+        )
+        self._label.place(x=25, y=pos_y+2, height=21)
+
+        self._input = tk.Entry(
+            parent_window,
+            font=("Segoe UI", 11),
+            justify="center"
+        )
+        self._input.place(x=185, y=pos_y, width=170)
+        self._input.bind("<FocusOut>", check_input)
+        self._input.insert(tk.END, conversion(init_value))
+
+        self._radiobutton = tk.Radiobutton(
+            parent_window,
+            variable = chosen_radiobutton,
+            value = name,
+            command=changing_radiobutton
+        )
+        self._radiobutton.place(x=360, y=pos_y+2)
+
+        self.value = init_value
 
 class ManualInputOfSubsession:
     def __init__(self, tk_root: tk.Tk, activities_names: dict[int, str]):
         self._activities_names = activities_names
 
-        self._start = int(time.time())
-        self._duration: int = 0
-        self._end = int(time.time())
+        self._result: dict[str, int] = {
+            "start": int(time.time()),
+            "duration": 0,
+            "end": int(time.time())
+        }
+        
+        self._data_is_correct: bool = True
 
         self._init_gui(tk_root)
         self._add_widgets()
@@ -48,6 +101,7 @@ class ManualInputOfSubsession:
         self._dialog_window.bind("<Return>", self._press_enter)
         self._dialog_window.bind("<Escape>", self._exit)
 
+
     def _add_widgets(self) -> None:
         # Активность
         self._activity_label = tk.Label(
@@ -56,7 +110,7 @@ class ManualInputOfSubsession:
             text='Активность:', 
             font=("Segoe UI", 10)
         )
-        self._activity_label.place(x=45, y=14)
+        self._activity_label.place(x=25, y=14)
 
         self._activity_combobox = ttk.Combobox(
             self._dialog_window,
@@ -64,55 +118,132 @@ class ManualInputOfSubsession:
             values=list(self._activities_names.values()),
             state="readonly",
         )
-        self._activity_combobox.place(x=180, y=12, width=170)
+        self._activity_combobox.place(x=185, y=12, width=170)
 
-        # Начало субсесии
-        self._start_label = tk.Label(
-            self._dialog_window,
-            anchor='w',
-            text='Начало субсессии:',
-            font=("Segoe UI", 10)
-        )
-        self._start_label.place(x=45, y=44, height=21)
+        field: dict[str, Field] = {}
+        self._chosen_radiobutton = tk.StringVar()
 
-        self._start_input = tk.Entry(
-            self._dialog_window,
-            font=("Segoe UI", 11)
+        field['start'] = Field(
+            parent_window=self._dialog_window,
+            name='start',
+            label_text='Начало субсессии:',
+            pos_y=42,
+            init_value=int(time.time()),
+            conversion=time_to_string,
+            error_message="Вы ввели некорректные дату и время!",
+            check_input=self._check_input,
+            chosen_radiobutton=self._chosen_radiobutton,
+            changing_radiobutton=self._changing_radiobutton
         )
-        self._start_input.place(x=180, y=42, width=170)
-        self._start_input.focus_set()
-        self._start_input.bind("<FocusOut>", self._check_start)
 
-        # Длительность субсессии
-        self._duration_label = tk.Label(
-            self._dialog_window,
-            text='Длительность субсессии:',
-            font=("Segoe UI", 10)
+        field['duration'] = Field(
+            parent_window=self._dialog_window,
+            name='duration',
+            label_text='Длительность субсессии:',
+            pos_y=72,
+            init_value=0,
+            conversion=duration_to_string,
+            error_message="Вы ввели некорректную длительность!",
+            check_input=self._check_input,
+            chosen_radiobutton=self._chosen_radiobutton,
+            changing_radiobutton=self._changing_radiobutton
         )
-        self._duration_label.place(x=20, y=75, height=21, width=170)
 
-        self._duration_input = tk.Entry(
-            self._dialog_window,
-            font=("Segoe UI", 11),
-            justify="center"
+        field['end'] = Field(
+            parent_window=self._dialog_window,
+            name='end',
+            label_text='Конец субсессии:',
+            pos_y=102,
+            init_value=int(time.time()),
+            conversion=time_to_string,
+            error_message="Вы ввели некорректные дату и время!",
+            check_input=self._check_input,
+            chosen_radiobutton=self._chosen_radiobutton,
+            changing_radiobutton=self._changing_radiobutton
         )
-        self._duration_input.place(x=20, y=100, width=170)
-        self._duration_input.bind("<FocusOut>", self._check_duration)
 
-        # Конец субсессии
-        self._end_label = tk.Label(
-            self._dialog_window,
-            text='Конец субсессии:',
-            font=("Segoe UI", 10)
-        )
-        self._end_label.place(x=210, y=75, width=170)
+        # self._result_input: dict[str, tk.Entry] = {}
 
-        self._end_input = tk.Entry(
-            self._dialog_window,
-            font=("Segoe UI", 11)
-        )
-        self._end_input.place(x=210, y=100, width=170)
-        self._end_input.bind("<FocusOut>", self._check_end)
+        # # Начало субсесии
+        # self._start_label = tk.Label(
+        #     self._dialog_window,
+        #     anchor='w',
+        #     text='Начало субсессии:',
+        #     font=("Segoe UI", 10)
+        # )
+        # self._start_label.place(x=25, y=44, height=21)
+
+        # self._result_input['start'] = tk.Entry(
+        #     self._dialog_window,
+        #     font=("Segoe UI", 11),
+        #     justify="center"
+        # )
+        # self._result_input['start'].place(x=185, y=42, width=170)
+        # self._result_input['start'].focus_set()
+        # self._result_input['start'].bind("<FocusOut>", self._check_input)
+
+        # # Длительность субсессии
+        # self._duration_label = tk.Label(
+        #     self._dialog_window,
+        #     anchor='w',
+        #     text='Длительность субсессии:',
+        #     font=("Segoe UI", 10)
+        # )
+        # self._duration_label.place(x=25, y=74, height=21, width=170)
+
+        # self._result_input['duration'] = tk.Entry(
+        #     self._dialog_window,
+        #     font=("Segoe UI", 11),
+        #     justify="center"
+        # )
+        # self._result_input['duration'].place(x=185, y=72, width=170)
+        # self._result_input['duration'].bind("<FocusOut>", self._check_input)
+
+        # # Конец субсессии
+        # self._end_label = tk.Label(
+        #     self._dialog_window,
+        #     anchor='w',
+        #     text='Конец субсессии:',
+        #     font=("Segoe UI", 10)
+        # )
+        # self._end_label.place(x=25, y=104, width=170)
+
+        # self._result_input['end'] = tk.Entry(
+        #     self._dialog_window,
+        #     font=("Segoe UI", 11),
+        #     justify="center"
+        # )
+        # self._result_input['end'].place(x=185, y=102, width=170)
+        # self._result_input['end'].bind("<FocusOut>", self._check_input)
+
+        # # Переключатели
+        # self._chosen_radiobutton = tk.StringVar()
+
+        # self._start_radiobutton = tk.Radiobutton(
+        #     self._dialog_window,
+        #     variable = self._chosen_radiobutton,
+        #     value = "start",
+        #     command=self._changing_radiobutton
+        # )
+        # self._start_radiobutton.place(x=360, y=44)
+
+        # self._duration_radiobutton = tk.Radiobutton(
+        #     self._dialog_window,
+        #     variable = self._chosen_radiobutton,
+        #     value = "duration",
+        #     command=self._changing_radiobutton
+        # )
+        # self._duration_radiobutton.place(x=360, y=74)
+
+        # self._end_radiobutton = tk.Radiobutton(
+        #     self._dialog_window,
+        #     variable = self._chosen_radiobutton,
+        #     value = "end",
+        #     command=self._changing_radiobutton
+        # )
+        # self._end_radiobutton.place(x=360, y=104)
+
+        # self._chosen_radiobutton.set('end')
 
         # Кнопка "Добавить субсесиию"
         self._add_button = tk.Button(
@@ -132,95 +263,94 @@ class ManualInputOfSubsession:
         )
         self._exit_button.place(x=332, y=145, height=28, width=60)
 
+    @property
+    def _blocked_input(self) -> tk.Entry:
+        return self._result_input[self._chosen_radiobutton.get()]
+        
+    def _changing_radiobutton(self):
+        for key in self._result_input:
+            self._result_input[key].config(state='normal')
+        self._blocked_input.config(state='readonly')
+            
+    def _update_blocked_input(self):
+        match self._key_by_widget(self._blocked_input):
+            case 'start':
+                self._result["start"] = self._result["end"] - self._result["duration"]
+            case 'duration':
+                if self._result["start"] > self._result["end"]:
+                    raise ValueError("Конец субсессии должен быть позже её начала!")
+                self._result["duration"] = self._result["end"] - self._result["start"]
+            case 'end':
+                self._result["end"] = self._result["start"] + self._result["duration"]
+        _blink(self._blocked_input)
+        self._set_values()
+
     def _set_values(self) -> None:
-        self._start_input.delete(0, tk.END)
-        self._start_input.insert(0, time_to_string(self._start))
-        self._duration_input.delete(0, tk.END)
-        self._duration_input.insert(0, duration_to_string(self._duration))
-        self._end_input.delete(0, tk.END)
-        self._end_input.insert(0, time_to_string(self._end))
+        self._blocked_input.config(state='normal')
+        for key in self._result_input:
+            self._result_input[key].delete(0, tk.END)
+            self._result_input[key].insert(0, CONVERTION[key](self._result[key]))
+        self._blocked_input.config(state='readonly')
 
-    # TODO может быть три эти функции объединить?
-    def _check_start(self, _: tk.Event | None = None) -> CheckStatus:
+    def _key_by_widget(self, widget: tk.Entry) -> str:
+        for key, widget_ in self._result_input.items():
+            if widget_ == widget:
+                return key
+        raise RuntimeError("Widget is not found")
+
+    def _check_input(self, event: tk.Event | None = None):
+        if event.widget == self._blocked_input:
+            return
+
+        this_widget = self._key_by_widget(event.widget)
         try:
-            _start = datetime_to_sec(self._start_input.get())
+            if this_widget == "duration":
+                _msg = "Вы ввели некорректную длительность!"
+                _getted_value: int = time_to_sec(event.widget.get())
+                if _getted_value < 0:
+                    _msg = "Длительность должна быть больше нуля!"
+                    raise ValueError
+            else:
+                _msg = "Вы ввели некорректные дату и время!"
+                _getted_value: int = datetime_to_sec(event.widget.get())
         except ValueError:
-            messagebox.showerror("Ошибка", "Вы ввели некорректные дату и время!")
-            self._start_input.focus_set()
-            return CheckStatus.failed
-
-        if self._start == _start:
-            self._set_values()
-            return CheckStatus.unchanged
-        else:
-            self._start = _start
-            self._end = self._start + self._duration
-            _blink(self._end_input)
-            self._set_values()
-            return CheckStatus.changed
-
-    def _check_duration(self, _: tk.Event | None = None) -> CheckStatus:
-        try:
-            _duration = time_to_sec(self._duration_input.get())
-        except ValueError:
-            messagebox.showerror("Ошибка", "Вы ввели некорректную длительность!")
-            self._duration_input.focus_set()
+            messagebox.showerror("Ошибка", _msg)
+            event.widget.focus_set()
+            self._data_is_correct = False
             return CheckStatus.failed
         
-        if _duration < 0:
-            messagebox.showerror("Ошибка", "Длительность должна быть больше нуля!")
-
-        if self._duration == _duration:
+        if self._result[this_widget] == _getted_value and self._data_is_correct:
             self._set_values()
             return CheckStatus.unchanged
         else:
-            self._duration = _duration
-            self._end = self._start + self._duration
-            _blink(self._end_input)
-            self._set_values()
-            return CheckStatus.changed
-
-    def _check_end(self, _: tk.Event | None = None) -> CheckStatus:
-        try:
-            _end = datetime_to_sec(self._end_input.get())
-        except ValueError:
-            messagebox.showerror("Ошибка", "Вы ввели некорректные дату и время!")
-            print(self._dialog_window.focus_get())
-            self._end_input.focus_set()
-            return CheckStatus.failed
-        
-        if _end < self._start:
-            messagebox.showerror("Ошибка", "Конец субсессии должен быть после её начала!")
-            self._end_input.focus_set()
-            return CheckStatus.failed
-
-        if self._end == _end:
-            self._set_values()
-            return CheckStatus.unchanged
-        else:
-            self._end = _end
-            self._duration = self._end - self._start
-            _blink(self._duration_input)
-            self._set_values()
-            return CheckStatus.changed
+            self._result[this_widget] = _getted_value
+            try:
+                self._update_blocked_input()
+                return CheckStatus.changed
+            except ValueError as err:
+                messagebox.showerror("Ошибка", str(err))
+                event.widget.focus_set()
+                self._data_is_correct = False
+                return CheckStatus.failed
 
     def _press_enter(self, event: tk.Event) -> None:
-        match event.widget:
-            case self._start_input:
-                check_status = self._check_start()
-            case self._duration_input:
-                check_status = self._check_duration()
-            case self._end_input:
-                check_status = self._check_end()
-            case _:
-                check_status = CheckStatus.unchanged
+        pass
+        # match event.widget:
+        #     case self._result_input['start']:
+        #         check_status = self._check_start()
+        #     case self._result_input['duration']:
+        #         check_status = self._check_duration()
+        #     case self._result_input['end']:
+        #         check_status = self._check_end()
+        #     case _:
+        #         check_status = CheckStatus.unchanged
 
-        if check_status == CheckStatus.unchanged:
-            self._add_button.config(relief=tk.SUNKEN)  # Имитируем нажатие кнопки
-            self._add_button.after(
-                100, lambda: self._add_button.config(relief=tk.RAISED)
-            )  # Имитируем отпускание кнопки
-            self._add()
+        # if check_status == CheckStatus.unchanged:
+        #     self._add_button.config(relief=tk.SUNKEN)  # Имитируем нажатие кнопки
+        #     self._add_button.after(
+        #         100, lambda: self._add_button.config(relief=tk.RAISED)
+        #     )  # Имитируем отпускание кнопки
+        #     self._add()
 
     def _add(self):
         if self._activity_combobox.current() == -1:
@@ -232,5 +362,5 @@ class ManualInputOfSubsession:
 
 
 def _blink(input_field: tk.Entry) -> None:
-    input_field.config(bg='green')
-    input_field.after(270, lambda: input_field.config(bg='white'))
+    input_field.config(readonlybackground='green')
+    input_field.after(200, lambda: input_field.config(readonlybackground=BACKGROUND_COLOR))
