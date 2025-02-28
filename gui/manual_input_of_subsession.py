@@ -29,6 +29,8 @@ class ManualInputOfSubsession:
         }
         
         self._data_is_correct: bool = True
+        self._returning_focus: bool = False
+        self._msgbox_is_active: bool = False
 
         self._init_gui(tk_root)
         self._add_widgets()
@@ -214,6 +216,14 @@ class ManualInputOfSubsession:
         raise RuntimeError("Widget is not found")
 
     def _check_input(self, event: tk.Event | None = None):
+        print("В начале:", self._dialog_window.focus_get())
+        if self._msgbox_is_active:
+            return
+
+        if self._returning_focus:
+            self._returning_focus = False
+            return
+
         if event.widget == self._blocked_input:
             return
 
@@ -243,7 +253,12 @@ class ManualInputOfSubsession:
                 self._update_blocked_input()
                 return CheckStatus.changed
             except ValueError as err:
-                messagebox.showerror("Ошибка", str(err))
+                self._msgbox_is_active = True
+                messagebox.showerror("Ошибка", str(err) + " " + str(self._dialog_window.focus_get()))
+                self._msgbox_is_active = False
+                if str(self._dialog_window.focus_get()) in {".!toplevel.!entry", ".!toplevel.!entry2", ".!toplevel.!entry3"}:
+                    self._returning_focus = True
+                print("После мсгбокс:", self._dialog_window.focus_get())
                 event.widget.focus_set()
                 self._data_is_correct = False
                 return CheckStatus.failed
