@@ -1,4 +1,22 @@
-from dataclasses import InitVar, dataclass, field
+from collections import defaultdict
+from dataclasses import dataclass, field
+
+
+@dataclass
+class Activity:
+    id: int
+    name: str
+
+
+@dataclass
+class Subsession:
+    start_time: int
+    activity: Activity
+    end_time: int = 0
+
+    @property
+    def duration(self) -> int:
+        return self.end_time - self.start_time if self.end_time > self.start_time else 0
 
 
 @dataclass
@@ -6,19 +24,11 @@ class Session:
     id: int | None = None
     start_time: int = 0
     end_time: int = 0
-    activity_durations: list[int] = field(default_factory=list)
-    activity_count: InitVar[int] = 0
+    subsessions: list[Subsession] = field(default_factory=list)
 
-    def __post_init__(self, activity_count: int):
-        if not self.activity_durations:
-            self.activity_durations = [0] * activity_count
-
+    def __post_init__(self):
         if self.end_time == 0:
             self.end_time = self.start_time
-
-    @property
-    def activity_duration_total(self) -> int:
-        return sum(self.activity_durations)
 
     @property
     def duration(self) -> int:
@@ -26,3 +36,6 @@ class Session:
 
     def is_active(self) -> bool:
         return self.start_time == self.end_time
+
+    def get_activity_duration(self, activity_id: int) -> int:
+        return sum(subs.duration for subs in self.subsessions if subs.activity.id == activity_id)

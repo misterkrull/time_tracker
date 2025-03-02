@@ -7,3 +7,4 @@ TK_IS_GREEN_COLORED = {True: "green", False: BACKGROUND_COLOR}
 
 SESSION_BUTTON_DICT = {True: "Завершить сессию", False: "Новая сессия"}
 SESSION_LABEL_DICT = {True: "Началась: ", False: "Длилась: "}
+TIMER_FRAME_COUNT = 5
