@@ -1,22 +1,18 @@
-from collections import defaultdict
 from dataclasses import dataclass, field
-
-
-@dataclass
-class Activity:
-    id: int
-    name: str
 
 
 @dataclass
 class Subsession:
     start_time: int
-    activity: Activity
+    activity_id: int
     end_time: int = 0
 
     @property
     def duration(self) -> int:
         return self.end_time - self.start_time if self.end_time > self.start_time else 0
+
+    def is_active(self) -> bool:
+        return self.end_time == 0
 
 
 @dataclass
@@ -38,4 +34,4 @@ class Session:
         return self.start_time == self.end_time
 
     def get_activity_duration(self, activity_id: int) -> int:
-        return sum(subs.duration for subs in self.subsessions if subs.activity.id == activity_id)
+        return sum(subs.duration for subs in self.subsessions if subs.activity_id == activity_id)

@@ -3,7 +3,7 @@ import os
 import sqlite3
 
 from gui.gui_constants import TIMER_FRAME_COUNT
-from session import Session, Subsession, Activity
+from session import Session, Subsession
 from common_functions import duration_to_string, parse_time, time_to_string
 
 MY_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -20,20 +20,18 @@ _LEGACY_ZERO_TIME_STRING_VALUE = "---"
 
 def _subsession_to_db_data(subsession: Subsession) -> tuple:
     return (
-        subsession.activity.id,
+        subsession.activity_id,
         time_to_string(subsession.start_time),
         time_to_string(subsession.end_time),
         duration_to_string(subsession.duration),
     )
 
 
-def _db_data_to_subsession(
-    start_time_str: str, end_time_str: str, activity_id: int, activity_name: str
-) -> Subsession:
+def _db_data_to_subsession(activity_id: int, start_time_str: str, end_time_str: str) -> Subsession:
     return Subsession(
         start_time=parse_time(start_time_str),
         end_time=parse_time(end_time_str),
-        activity=Activity(id=activity_id, name=activity_name),
+        activity_id=activity_id,
     )
 
 
@@ -41,10 +39,10 @@ def _get_activity_durations(session: Session) -> list[int]:
     durations_by_activity = [0] * len(DEFAULT_ACTIVITIES)
     for subs in session.subsessions:
         # TODO: Здесь потенциальный баг, потому что id в базе
-        # не обязаны идти по порядку и совпадать с порядковыми индексами списка, даже с учетом -1,
-        # по правильному надо использовать id из базы,
+        # не обязаны идти по порядку и совпадать с порядковым индексом списка -1,
+        # по правильному надо использовать все id из базы и отсортировать их,
         # а еще более правильно вообще не сохранять лишнюю инфу в базе
-        durations_by_activity[subs.activity.id - 1] += subs.duration
+        durations_by_activity[subs.activity_id - 1] += subs.duration
     return durations_by_activity
 
 
@@ -68,7 +66,7 @@ def _db_data_to_session(
     id: int,
     start_time_str: str,
     end_time_str: str,
-    subsession_db_data_list: list[tuple[str, str, int, str]],
+    subsession_db_data_list: list[tuple[int, str, str]],
 ) -> Session:
     start_time = parse_time(start_time_str)
     end_time = (
@@ -166,9 +164,8 @@ class DB:
         )
         session_db_data = self._cur.fetchone()
         self._cur.execute(
-            "SELECT subs.start_subs_datetime, subs.end_subs_datetime, act.id, act.title "
-            "FROM subsessions AS subs LEFT JOIN activities AS act ON subs.activity=act.id "
-            "WHERE subs.session_number = ?",
+            "SELECT activity, start_subs_datetime, end_subs_datetime FROM subsessions "
+            "WHERE session_number = ?",
             (session_db_data[0],),
         )
         subsession_db_data_list = self._cur.fetchall()
@@ -211,9 +208,9 @@ class DB:
         if need_commit:
             self._conn.commit()
 
-    def get_activities(self) -> list[Activity]:
+    def get_activity_table(self) -> dict[int, str]:
         self._cur.execute("SELECT id, title FROM activities")
-        return [Activity(*item) for item in self._cur.fetchall()]
+        return dict(self._cur.fetchall())
 
     def load_all_timers_activity_ids(self) -> list[int]:
         self._cur.execute("SELECT * FROM app_state")

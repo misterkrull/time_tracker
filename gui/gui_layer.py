@@ -11,7 +11,6 @@ from gui.gui_constants import (
 from gui.retroactively_termination_of_session import RetroactivelyTerminationOfSession
 from gui.timer_frame import TimerFrame
 from application_logic import ApplicationLogic
-from session import Activity
 from time_counter import TimeCounter
 
 
@@ -99,35 +98,41 @@ class GuiLayer:
 
     def _init_middle_widgets(self):
         """Создает центральный фрейм, который состоит из фреймов таймеров"""
-        timers_activities: list[Activity] = self.app.db.load_all_timers_activity_ids()
+        timers_activities: list[int] = self.app.db.load_all_timers_activity_ids()
         main_frame = tk.Frame(self.root)
         main_frame.pack(pady=0)
 
         self.timer_frame_list: list[TimerFrame] = []
+        duration_table = self.app.get_duration_table()
         for timer_id, activity_id in enumerate(timers_activities):
             self.timer_frame_list.append(
                 TimerFrame(
                     timer_id,
                     activity_id,
-                    self.app.session,
-                    self.app.activities,
+                    self.app.activity_table,
+                    duration_table,
                     main_frame,
-                    on_start_button=self.start_timer,
+                    on_start_button=self.on_start_timer_button,
                 )
             )
 
     def _init_bottom_widgets(self):
         """Кнопка "Стоп" внизу"""
-        self.stop_button = tk.Button(
+        self.stop_timers_button = tk.Button(
             self.root,
             text="Стоп",
-            command=self.stop_timers,
+            command=self.on_stop_timers_button,
             font=("Helvetica", 14),
             width=30,
             height=1,
             state=TK_BUTTON_STATES[self.time_counter.is_running()],
         )
-        self.stop_button.pack(pady=10)
+        self.stop_timers_button.pack(pady=10)
+
+    def _reset_timer_frames(self):
+        new_duration_table = self.app.get_duration_table()
+        for timer_frame in self.timer_frame_list:
+            timer_frame.reset(new_duration_table)
 
     def _draw_session_state(self):
         if self.app.session.is_active():
@@ -140,18 +145,17 @@ class GuiLayer:
         self.retroactively_terminate_session_button.config(state=TK_BUTTON_STATES[False])
         for timer in self.timer_frame_list:
             timer._gui_start_button.config(state=TK_BUTTON_STATES[self.app.session.is_active()])
-        self.stop_button.config(state=TK_BUTTON_STATES[self.time_counter.is_running()])
+        self.stop_timers_button.config(state=TK_BUTTON_STATES[self.time_counter.is_running()])
 
     def _terminate_session(self, end_time: int) -> None:
-        self.stop_timers()
+        self.on_stop_timers_button()
         session_duration = self.app.terminate_session(end_time)
         self.start_sess_datetime_label.config(text=duration_to_string(session_duration))
         self._draw_session_state()
 
     def _start_session(self, start_time: int) -> None:
         self.app.start_session(start_time)
-        for timer in self.timer_frame_list:
-            timer._gui_label.config(text="00:00:00")
+        self._reset_timer_frames()
         self._draw_session_state()
 
     def _on_session_button_click(self) -> None:
@@ -167,13 +171,13 @@ class GuiLayer:
         )
 
     def _on_closing(self):
-        self.stop_timers()
+        self.on_stop_timers_button()
         self.app.db.save_all_timers_activity_ids(
             [timer.activity_id for timer in self.timer_frame_list]
         )
         self.root.destroy()
 
-    def start_timer(self, id: int) -> None:
+    def on_start_timer_button(self, id: int) -> None:
         """Запускается при нажатии на кнопку "Старт" у таймера"""
         if self.time_counter.is_running():
             stop_time: int = self.time_counter.stop()
@@ -181,17 +185,12 @@ class GuiLayer:
 
         start_time: int = self.time_counter.start()
         self.app.start_subsession(start_time, self.timer_frame_list[id].activity_id)
-
-        for timer_frame in self.timer_frame_list:
-            if timer_frame.id == id:
-                timer_frame.start()
-            else:
-                timer_frame.stop()
-
-        self.stop_button.config(state=TK_BUTTON_STATES[True])
+        self._reset_timer_frames()
+        self.timer_frame_list[id].make_master()
+        self.stop_timers_button.config(state=TK_BUTTON_STATES[True])
 
     @print_performance
-    def stop_timers(self):
+    def on_stop_timers_button(self):
         """
         Запускается при нажатии на кнопку "Стоп"
         """
@@ -201,12 +200,16 @@ class GuiLayer:
         stop_time: int = self.time_counter.stop()
 
         self.retroactively_terminate_session_button.config(state=TK_BUTTON_STATES[True])
-        for timer_frame in self.timer_frame_list:
-            timer_frame.stop()
+        self.stop_timers_button.config(state=TK_BUTTON_STATES[False])
 
         self.app.terminate_subsession(stop_time)
 
+        # Сброс таймер фреймов нужно позвать после останова подсессии,
+        # т.к. они отображают состояние подсессии
+        self._reset_timer_frames()
+
     def on_time_counter_tick(self, current_duration: int):
+        current_activity_id = self.app.session.subsessions[-1].activity_id
         for timer in self.timer_frame_list:
-            if timer.is_active():
-                timer.update_time(current_duration)
+            if timer.activity_id == current_activity_id:
+                timer.update_time_label(current_duration)

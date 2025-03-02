@@ -3,15 +3,11 @@ from tkinter import ttk
 from typing import Callable
 
 from common_functions import duration_to_string
-from session import Session, Activity
 from gui.gui_constants import (
-    BACKGROUND_COLOR,
     TK_BUTTON_STATES,
+    TK_COMBOBOX_STATE,
+    TK_IS_GREEN_COLORED,
 )
-
-
-def _get_activity_text(activity: Activity) -> str:
-    return f"{activity.id}. {activity.name}"
 
 
 class TimerFrame:
@@ -19,20 +15,24 @@ class TimerFrame:
         self,
         id: int,
         activity_id: int,
-        session: Session,
-        activity_list: list[Activity],
+        activity_table: dict[int, str],
+        duration_table: dict[int, int],
         main_frame: tk.Frame,
         on_start_button: Callable[[int], None],
     ):
         self.id = id
         self.activity_id = activity_id
 
-        self._session = session
-        self._duration = self._session.get_activity_duration(self.activity_id)
-        self._activity_table = {act.id: act for act in activity_list}
+        self._is_master = False
+        self._is_active = False
+        self._activity_table = activity_table
+        self._duration_table = duration_table
         self._on_start_button = on_start_button
 
         self._init_widgets(main_frame)
+
+    def _get_activity_text(self, activity_id: int) -> str:
+        return f"{activity_id}. {self._activity_table[activity_id]}"
 
     def _init_widgets(self, main_frame: tk.Frame) -> None:
         timer_frame = tk.Frame(main_frame)
@@ -41,7 +41,7 @@ class TimerFrame:
         # Лейбл
         self._gui_label = tk.Label(
             timer_frame,
-            text=duration_to_string(self._duration),
+            text=duration_to_string(self._duration_table[self.activity_id]),
             font=("Helvetica", 36),
         )
         self._gui_label.pack()
@@ -49,11 +49,11 @@ class TimerFrame:
         # Комбобокс
         # StringVar нужен для связи со значением комбобокса
         self._combobox_variable = tk.StringVar()
-        self._combobox_variable.set(_get_activity_text(self._activity_table[self.activity_id]))
+        self._combobox_variable.set(self._get_activity_text(self.activity_id))
         self._gui_combobox = ttk.Combobox(
             timer_frame,
             textvariable=self._combobox_variable,
-            values=[_get_activity_text(act) for act in self._activity_table.values()],
+            values=[self._get_activity_text(id) for id in self._activity_table.keys()],
             state="readonly",
         )
         self._gui_combobox.pack(pady=5)
@@ -67,31 +67,34 @@ class TimerFrame:
             font=("Helvetica", 14),
             width=10,
             height=1,
-            state=TK_BUTTON_STATES[self._session.is_active()],
+            state=TK_BUTTON_STATES[True],
         )
         self._gui_start_button.pack(pady=5)
 
     def _select_activity(self, _: tk.Event):
         self.activity_id = list(self._activity_table.keys())[self._gui_combobox.current()]
-        self._duration = self._session.get_activity_duration(self.activity_id)
-        self._gui_label.config(text=duration_to_string(self._duration))
-        self._update_button_state()
+        self._is_active = False
+        self._update_widgets_state()
 
-    def stop(self) -> None:
-        self._gui_combobox.config(state="readonly")
-        self._gui_label.config(bg=BACKGROUND_COLOR)
-        self._update_button_state()
+    def _update_widgets_state(self, time_counter_duration: int = 0):
+        self._gui_label.config(bg=TK_IS_GREEN_COLORED[self._is_master])
+        self._gui_combobox.config(state=TK_COMBOBOX_STATE[not self._is_master])
+        self._gui_label.config(
+            text=duration_to_string(self._duration_table[self.activity_id] + time_counter_duration)
+        )
+        self._gui_start_button.config(state=TK_BUTTON_STATES[not self._is_active])
 
-    def start(self) -> None:
-        self._gui_combobox.config(state="disabled")
-        self._gui_label.config(bg="green")
-        self._update_button_state()
+    def make_master(self) -> None:
+        self._is_master = True
+        self._is_active = True
+        self._update_widgets_state()
 
-    def is_active(self) -> bool:
-        return self._session.subsessions[-1].activity.id == self.activity_id
+    def reset(self, new_duration_table: dict[int, int]) -> None:
+        self._is_master = False
+        self._is_active = False
+        self._duration_table = new_duration_table
+        self._update_widgets_state()
 
-    def update_time(self, time_counter_duration: int):
-        self._gui_label.config(text=duration_to_string(self._duration + time_counter_duration))
-
-    def _update_button_state(self):
-        self._gui_start_button.config(state=TK_BUTTON_STATES[not self.is_active()])
+    def update_time_label(self, time_counter_duration: int):
+        self._is_active = True
+        self._update_widgets_state(time_counter_duration)
