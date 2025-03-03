@@ -115,6 +115,7 @@ class GuiLayer:
                     on_start_button=self.on_start_timer_button,
                 )
             )
+        self._reset_timer_frames()
 
     def _init_bottom_widgets(self):
         """Кнопка "Стоп" внизу"""
@@ -132,7 +133,7 @@ class GuiLayer:
     def _reset_timer_frames(self):
         new_duration_table = self.app.get_duration_table()
         for timer_frame in self.timer_frame_list:
-            timer_frame.reset(new_duration_table)
+            timer_frame.reset(new_duration_table, self.app.session.is_active())
 
     def _draw_session_state(self):
         if self.app.session.is_active():
@@ -151,6 +152,7 @@ class GuiLayer:
         self.on_stop_timers_button()
         session_duration = self.app.terminate_session(end_time)
         self.start_sess_datetime_label.config(text=duration_to_string(session_duration))
+        self._reset_timer_frames()
         self._draw_session_state()
 
     def _start_session(self, start_time: int) -> None:

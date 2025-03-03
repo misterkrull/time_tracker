@@ -25,6 +25,7 @@ class TimerFrame:
 
         self._is_master = False
         self._is_active = False
+        self._is_session_active = False
         self._activity_table = activity_table
         self._duration_table = duration_table
         self._on_start_button = on_start_button
@@ -78,20 +79,25 @@ class TimerFrame:
 
     def _update_widgets_state(self, time_counter_duration: int = 0):
         self._gui_label.config(bg=TK_IS_GREEN_COLORED[self._is_master])
-        self._gui_combobox.config(state=TK_COMBOBOX_STATE[not self._is_master])
+        self._gui_combobox.config(
+            state=TK_COMBOBOX_STATE[self._is_session_active and not self._is_master]
+        )
         self._gui_label.config(
             text=duration_to_string(self._duration_table[self.activity_id] + time_counter_duration)
         )
-        self._gui_start_button.config(state=TK_BUTTON_STATES[not self._is_active])
+        self._gui_start_button.config(
+            state=TK_BUTTON_STATES[self._is_session_active and not self._is_active]
+        )
 
     def make_master(self) -> None:
         self._is_master = True
         self._is_active = True
         self._update_widgets_state()
 
-    def reset(self, new_duration_table: dict[int, int]) -> None:
+    def reset(self, new_duration_table: dict[int, int], is_session_active: bool) -> None:
         self._is_master = False
         self._is_active = False
+        self._is_session_active = is_session_active
         self._duration_table = new_duration_table
         self._update_widgets_state()
 
