@@ -3,7 +3,7 @@ import time
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from common_functions import datetime_to_sec, duration_to_string, time_to_sec, time_to_string
+from common_functions import parse_time, duration_to_string, parse_duration, time_to_string
 
 class CheckStatus(enum.Enum):
     failed = 0
@@ -185,7 +185,7 @@ class ManualInputOfSubsession:
         
         try:
             _start_text = self._start_input.get()
-            _start = datetime_to_sec(_start_text)
+            _start = parse_time(_start_text)
         except ValueError:
             self._call_msgbox("Вы ввели некорректные дату и время!")
             self._force_focus_set(self._start_input)
@@ -224,7 +224,7 @@ class ManualInputOfSubsession:
         
         try:
             _duration_text = self._duration_input.get()
-            _duration = time_to_sec(_duration_text)
+            _duration = parse_duration(_duration_text)
         except ValueError:
             self._call_msgbox("Вы ввели некорректную длительность!")
             self._force_focus_set(self._duration_input)
@@ -263,7 +263,7 @@ class ManualInputOfSubsession:
         
         try:
             _end_text = self._end_input.get()
-            _end = datetime_to_sec(_end_text)
+            _end = parse_time(_end_text)
         except ValueError:
             self._call_msgbox("Вы ввели некорректные дату и время!")
             self._force_focus_set(self._end_input)

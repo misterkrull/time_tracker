@@ -5,14 +5,14 @@ import tkinter as tk
 from tkinter import messagebox
 from typing import Callable
 
-from common_functions import time_to_string, datetime_to_sec
+from common_functions import time_to_string, parse_time
 # from time_tracker import ApplicationLogic
 # нужно будет раскомментить, когда (если) time_tracker перестанет импортировать gui_layer
 
 
 def _get_end_current_session(entered_datetime: str, end_last_subsession: int) -> int:
     try:
-        end_current_session: int | None = datetime_to_sec(entered_datetime.strip())
+        end_current_session: int | None = parse_time(entered_datetime.strip())
     except ValueError:
         raise ValueError("Вы ввели некорректные дату и время!")
 

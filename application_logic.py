@@ -2,9 +2,9 @@ import time
 
 from common_functions import (
     duration_to_string,
-    time_to_sec,
+    parse_duration,
     time_to_string,
-    datetime_to_sec,
+    parse_time,
 )
 from db_manager import DB
 
@@ -41,11 +41,11 @@ class ApplicationLogic:
                 if self.is_in_session
                 else duration_current_session_HMS
             )
-            self.current_session_start_time: int = datetime_to_sec(start_current_session_datetime)
+            self.current_session_start_time: int = parse_time(start_current_session_datetime)
 
             self.durations_of_activities_in_current_session: dict[int, int] = {
                 i + 1: v
-                for i, v in enumerate(map(time_to_sec, last_session[-self._activity_count :]))
+                for i, v in enumerate(map(parse_duration, last_session[-self._activity_count :]))
             }
 
         self.duration_of_all_activities: int = sum(
@@ -55,7 +55,7 @@ class ApplicationLogic:
         self.amount_of_subsessions: int = self.db.get_amount_of_subsessions(self.session_number)
         # print("Количество подсессий:", self.amount_of_subsessions)
         if self.amount_of_subsessions > 0:
-            self.end_last_subsession: int = datetime_to_sec(
+            self.end_last_subsession: int = parse_time(
                 self.db.get_datetime_of_last_subsession()
             )
         # это нужно для работы кнопки "Завершить сессию задним числом"
