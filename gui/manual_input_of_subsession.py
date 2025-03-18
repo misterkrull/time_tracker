@@ -76,7 +76,7 @@ class ManualInputOfSubsession:
             state="readonly",
         )
         self._activity_combobox.place(x=180, y=12, width=170)
-        self._activity_combobox.bind("<<ComboboxSelected>>", self._select_activity)
+        self._activity_combobox.bind("<<ComboboxSelected>>", self._set_okbutton_state)
 
         # Начало субсесии
         self._start_label = tk.Label(
@@ -93,8 +93,8 @@ class ManualInputOfSubsession:
         )
         self._start_input.place(x=180, y=42, width=170)
         self._start_input.focus_set()
-        self._start_input.bind("<FocusOut>", self._check_start)
         self._start_input.bind("<Key>", self._validate_inputing_symbols_startend)
+        self._start_input.bind("<FocusOut>", self._check_start)
 
         # Длительность субсессии
         self._duration_label = tk.Label(
@@ -110,8 +110,8 @@ class ManualInputOfSubsession:
             justify="center"
         )
         self._duration_input.place(x=20, y=100, width=170)
-        self._duration_input.bind("<FocusOut>", self._check_duration)
         self._duration_input.bind("<Key>", self._validate_inputing_symbols_duration)
+        self._duration_input.bind("<FocusOut>", self._check_duration)
 
         # Конец субсессии
         self._end_label = tk.Label(
@@ -126,8 +126,8 @@ class ManualInputOfSubsession:
             font=("Segoe UI", 11)
         )
         self._end_input.place(x=210, y=100, width=170)
-        self._end_input.bind("<FocusOut>", self._check_end)
         self._end_input.bind("<Key>", self._validate_inputing_symbols_startend)
+        self._end_input.bind("<FocusOut>", self._check_end)
 
         # Кнопка "Добавить субсесиию"
         self._add_button = tk.Button(
@@ -159,8 +159,7 @@ class ManualInputOfSubsession:
     def _validate_inputing_symbols_startend(self, event: tk.Event) -> None | str:
         # пропускаем управляющие клавиши -- иначе он их блокирует
         if event.keysym in ["Left", "Right", "Up", "Down", "Home", "End", "BackSpace", "Delete", "Return", "Tab"]:
-            return
-        
+            return        
         # блокируем запрещённые символы
         if event.char not in "1234567890:- ":
             return "break"  # Отменяет ввод символа
@@ -168,13 +167,12 @@ class ManualInputOfSubsession:
     def _validate_inputing_symbols_duration(self, event: tk.Event) -> None | str:
         # пропускаем управляющие клавиши -- иначе он их блокирует
         if event.keysym in ["Left", "Right", "Up", "Down", "Home", "End", "BackSpace", "Delete", "Return", "Tab"]:
-            return
-        
+            return        
         # блокируем запрещённые символы
         if event.char not in "1234567890:":
             return "break"  # Отменяет ввод символа
 
-    def _select_activity(self, _) -> None:
+    def _set_okbutton_state(self, _: tk.Event | None = None) -> None:
         if self._activity_combobox.current() != -1 and self._is_correct_data:
             self._add_button.config(state="normal")
 
@@ -197,8 +195,7 @@ class ManualInputOfSubsession:
             return
 
         self._is_correct_data = True
-        if self._activity_combobox.current() != -1:
-            self._add_button.config(state="normal")
+        self._set_okbutton_state()
         
         if self._start == _start:
             self._set_values()
@@ -237,8 +234,7 @@ class ManualInputOfSubsession:
             return
                 
         self._is_correct_data = True
-        if self._activity_combobox.current() != -1:
-            self._add_button.config(state="normal")
+        self._set_okbutton_state()
 
         if self._duration == _duration:
             self._set_values()
@@ -287,8 +283,7 @@ class ManualInputOfSubsession:
             return
         
         self._is_correct_data = True
-        if self._activity_combobox.current() != -1:
-            self._add_button.config(state="normal")
+        self._set_okbutton_state()
 
         if self._end == _end:
             self._set_values()
@@ -316,8 +311,6 @@ class ManualInputOfSubsession:
         self._is_msgbox_called = False
 
     def _force_focus_set(self, entry: tk.Entry) -> None:
-        print()
-        print(self._tk_root.focus_get().winfo_name(), entry.winfo_name())
         all_inputs = {self._start_input.winfo_name(), self._duration_input.winfo_name(), self._end_input.winfo_name()}
         if self._tk_root.focus_get().winfo_name() in all_inputs:
             if self._tk_root.focus_get().winfo_name() != entry.winfo_name():
@@ -337,7 +330,6 @@ class ManualInputOfSubsession:
 
     def _press_ctrl_enter(self, event: tk.Event) -> None:
         self._press_enter(event)
-        # if not self._is_changed:
         if self._is_correct_data and self._activity_combobox.current() != -1:
             self._add_button.config(relief=tk.SUNKEN)  # Имитируем нажатие кнопки
             self._add_button.after(
@@ -346,10 +338,8 @@ class ManualInputOfSubsession:
             self._add()
 
     def _add(self):
-        if self._activity_combobox.current() == -1:
-            self._call_msgbox("Вы не выбрали активность!")
-            return
-        
+        pass
+
     def _exit(self, _: tk.Event | None = None) -> None:
         self._dialog_window.destroy()
 
