@@ -190,6 +190,7 @@ class GuiLayer:
         self._reset_timer_frames()
         self.timer_frame_list[id].make_master()
         self.stop_timers_button.config(state=TK_BUTTON_STATES[True])
+        self.retroactively_terminate_session_button.config(state=TK_BUTTON_STATES[False])
 
     @print_performance
     def on_stop_timers_button(self):
@@ -201,8 +202,8 @@ class GuiLayer:
 
         stop_time: int = self.time_counter.stop()
 
-        self.retroactively_terminate_session_button.config(state=TK_BUTTON_STATES[True])
         self.stop_timers_button.config(state=TK_BUTTON_STATES[False])
+        self.retroactively_terminate_session_button.config(state=TK_BUTTON_STATES[True])
 
         self.app.terminate_subsession(stop_time)
 
