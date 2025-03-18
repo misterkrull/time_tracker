@@ -26,11 +26,11 @@ class TimeCounter:
     def stop(self) -> int:
         """
         Останавливает time_counter
-        Возращает количество секунд, которые он насчитал (в int)
+        Возвращает время останова.
         """
         self._tk_root.after_cancel(self._tkinter_task_id)
         self._tkinter_task_id = None
-        return self._seconds
+        return int(self._start_time + self._seconds)
 
     def is_running(self):
         return self._tkinter_task_id is not None
