@@ -13,15 +13,25 @@ class CheckStatus(enum.Enum):
 
 class ManualInputOfSubsession:
     def __init__(self, tk_root: tk.Tk, activities_names: dict[int, str]):
+        self._tk_root = tk_root  # пока временно ставлю, мб потом уберу
         self._activities_names = activities_names
 
         self._start = int(time.time())
         self._duration: int = 0
         self._end = int(time.time())
 
+        self._start_text = time_to_string(self._start)
+        self._duration_text = duration_to_string(self._duration)
+        self._end_text = time_to_string(self._end)
+
         self._init_gui(tk_root)
         self._add_widgets()
         self._set_values()
+
+        self._is_changed = False
+        self._is_msgbox_called = False
+        self._is_force_focus_set = False
+        self._is_correct_data = True
 
     def _init_gui(self, tk_root: tk.Tk) -> None:
         # создаём диалоговое окно
@@ -46,6 +56,7 @@ class ManualInputOfSubsession:
         self._dialog_window.title("Ручной ввод подсессии")  # указываем название окна
 
         self._dialog_window.bind("<Return>", self._press_enter)
+        self._dialog_window.bind("<Control-Return>", self._press_ctrl_enter)
         self._dialog_window.bind("<Escape>", self._exit)
 
     def _add_widgets(self) -> None:
@@ -65,6 +76,7 @@ class ManualInputOfSubsession:
             state="readonly",
         )
         self._activity_combobox.place(x=180, y=12, width=170)
+        self._activity_combobox.bind("<<ComboboxSelected>>", self._select_activity)
 
         # Начало субсесии
         self._start_label = tk.Label(
@@ -82,6 +94,7 @@ class ManualInputOfSubsession:
         self._start_input.place(x=180, y=42, width=170)
         self._start_input.focus_set()
         self._start_input.bind("<FocusOut>", self._check_start)
+        self._start_input.bind("<Key>", self._validate_inputing_symbols_startend)
 
         # Длительность субсессии
         self._duration_label = tk.Label(
@@ -98,6 +111,7 @@ class ManualInputOfSubsession:
         )
         self._duration_input.place(x=20, y=100, width=170)
         self._duration_input.bind("<FocusOut>", self._check_duration)
+        self._duration_input.bind("<Key>", self._validate_inputing_symbols_duration)
 
         # Конец субсессии
         self._end_label = tk.Label(
@@ -113,13 +127,15 @@ class ManualInputOfSubsession:
         )
         self._end_input.place(x=210, y=100, width=170)
         self._end_input.bind("<FocusOut>", self._check_end)
+        self._end_input.bind("<Key>", self._validate_inputing_symbols_startend)
 
         # Кнопка "Добавить субсесиию"
         self._add_button = tk.Button(
             self._dialog_window,
             text='Добавить подсессию',
             font=("Segoe UI", 12),
-            command=self._add
+            command=self._add,
+            state="disabled"
         )
         self._add_button.place(x=110, y=133, height=35, width=180)
 
@@ -140,82 +156,189 @@ class ManualInputOfSubsession:
         self._end_input.delete(0, tk.END)
         self._end_input.insert(0, time_to_string(self._end))
 
-    # TODO может быть три эти функции объединить?
-    def _check_start(self, _: tk.Event | None = None) -> CheckStatus:
-        try:
-            _start = datetime_to_sec(self._start_input.get())
-        except ValueError:
-            messagebox.showerror("Ошибка", "Вы ввели некорректные дату и время!")
-            self._start_input.focus_set()
-            return CheckStatus.failed
+    def _validate_inputing_symbols_startend(self, event: tk.Event) -> None | str:
+        # пропускаем управляющие клавиши -- иначе он их блокирует
+        if event.keysym in ["Left", "Right", "Up", "Down", "Home", "End", "BackSpace", "Delete", "Return", "Tab"]:
+            return
+        
+        # блокируем запрещённые символы
+        if event.char not in "1234567890:- ":
+            return "break"  # Отменяет ввод символа
 
+    def _validate_inputing_symbols_duration(self, event: tk.Event) -> None | str:
+        # пропускаем управляющие клавиши -- иначе он их блокирует
+        if event.keysym in ["Left", "Right", "Up", "Down", "Home", "End", "BackSpace", "Delete", "Return", "Tab"]:
+            return
+        
+        # блокируем запрещённые символы
+        if event.char not in "1234567890:":
+            return "break"  # Отменяет ввод символа
+
+    def _select_activity(self, _) -> None:
+        if self._activity_combobox.current() != -1 and self._is_correct_data:
+            self._add_button.config(state="normal")
+
+    def _check_start(self, _: tk.Event | None = None) -> None:
+        if self._is_msgbox_called:
+            return
+        if self._is_force_focus_set:
+            self._is_force_focus_set = False
+            return
+        
+        try:
+            _start_text = self._start_input.get()
+            _start = datetime_to_sec(_start_text)
+        except ValueError:
+            self._call_msgbox("Вы ввели некорректные дату и время!")
+            self._force_focus_set(self._start_input)
+            self._start_text = _start_text
+            self._is_changed = True
+            self._is_correct_data = False
+            return
+
+        self._is_correct_data = True
+        if self._activity_combobox.current() != -1:
+            self._add_button.config(state="normal")
+        
         if self._start == _start:
             self._set_values()
-            return CheckStatus.unchanged
+            if self._start_text == _start_text:
+                self._is_changed = False
+            else:
+                _blink(self._start_input)
+                self._start_text = _start_text
+                self._is_changed = True
+            return
         else:
             self._start = _start
+            self._start_text = _start_text
             self._end = self._start + self._duration
             _blink(self._end_input)
             self._set_values()
-            return CheckStatus.changed
+            self._is_changed = True
+            return
 
-    def _check_duration(self, _: tk.Event | None = None) -> CheckStatus:
-        try:
-            _duration = time_to_sec(self._duration_input.get())
-        except ValueError:
-            messagebox.showerror("Ошибка", "Вы ввели некорректную длительность!")
-            self._duration_input.focus_set()
-            return CheckStatus.failed
+    def _check_duration(self, _: tk.Event | None = None) -> None:
+        if self._is_msgbox_called:
+            return
+        if self._is_force_focus_set:
+            self._is_force_focus_set = False
+            return
         
-        if _duration < 0:
-            messagebox.showerror("Ошибка", "Длительность должна быть больше нуля!")
+        try:
+            _duration_text = self._duration_input.get()
+            _duration = time_to_sec(_duration_text)
+        except ValueError:
+            self._call_msgbox("Вы ввели некорректную длительность!")
+            self._force_focus_set(self._duration_input)
+            self._duration_text = _duration_text
+            self._is_changed = True
+            self._is_correct_data = False
+            return
+                
+        self._is_correct_data = True
+        if self._activity_combobox.current() != -1:
+            self._add_button.config(state="normal")
 
         if self._duration == _duration:
             self._set_values()
-            return CheckStatus.unchanged
+            if self._duration_text == _duration_text:
+                self._is_changed = False
+            else:
+                _blink(self._duration_input)
+                self._duration_text = _duration_text
+                self._is_changed = True
+            return
         else:
             self._duration = _duration
+            self._duration_text = _duration_text
             self._end = self._start + self._duration
             _blink(self._end_input)
             self._set_values()
-            return CheckStatus.changed
+            self._is_changed = True
+            return
 
-    def _check_end(self, _: tk.Event | None = None) -> CheckStatus:
+    def _check_end(self, _: tk.Event | None = None) -> None:
+        if self._is_msgbox_called:
+            return
+        if self._is_force_focus_set:
+            self._is_force_focus_set = False
+            return
+        
         try:
-            _end = datetime_to_sec(self._end_input.get())
+            _end_text = self._end_input.get()
+            _end = datetime_to_sec(_end_text)
         except ValueError:
-            messagebox.showerror("Ошибка", "Вы ввели некорректные дату и время!")
-            print(self._dialog_window.focus_get())
-            self._end_input.focus_set()
-            return CheckStatus.failed
+            self._call_msgbox("Вы ввели некорректные дату и время!")
+            self._force_focus_set(self._end_input)
+            self._end_text = _end_text
+            self._is_changed = True
+            self._is_correct_data = False
+            return
         
         if _end < self._start:
-            messagebox.showerror("Ошибка", "Конец субсессии должен быть после её начала!")
-            self._end_input.focus_set()
-            return CheckStatus.failed
+            self._end_input.delete(0, tk.END)
+            self._end_input.insert(0, time_to_string(_end))
+            self._call_msgbox("Конец субсессии должен быть после её начала!")
+            self._force_focus_set(self._end_input)
+            self._end_text = _end_text
+            self._is_changed = True
+            self._is_correct_data = False
+            return
+        
+        self._is_correct_data = True
+        if self._activity_combobox.current() != -1:
+            self._add_button.config(state="normal")
 
         if self._end == _end:
             self._set_values()
-            return CheckStatus.unchanged
+            if self._end_text == _end_text:
+                self._is_changed = False
+            else:
+                _blink(self._end_input)
+                self._end_text = _end_text
+                self._is_changed = True
+            return
         else:
             self._end = _end
+            self._end_text = _end_text
             self._duration = self._end - self._start
             _blink(self._duration_input)
             self._set_values()
-            return CheckStatus.changed
+            self._is_changed = True
+            return
+        
+    def _call_msgbox(self, text: str) -> None:
+        self._add_button.config(state="disabled")
+
+        self._is_msgbox_called = True
+        messagebox.showerror("Ошибка", text)
+        self._is_msgbox_called = False
+
+    def _force_focus_set(self, entry: tk.Entry) -> None:
+        print()
+        print(self._tk_root.focus_get().winfo_name(), entry.winfo_name())
+        all_inputs = {self._start_input.winfo_name(), self._duration_input.winfo_name(), self._end_input.winfo_name()}
+        if self._tk_root.focus_get().winfo_name() in all_inputs:
+            if self._tk_root.focus_get().winfo_name() != entry.winfo_name():
+                self._is_force_focus_set = True
+                entry.focus_set()
+        else:
+            entry.focus_set()
 
     def _press_enter(self, event: tk.Event) -> None:
         match event.widget:
             case self._start_input:
-                check_status = self._check_start()
+                self._check_start()
             case self._duration_input:
-                check_status = self._check_duration()
+                self._check_duration()
             case self._end_input:
-                check_status = self._check_end()
-            case _:
-                check_status = CheckStatus.unchanged
+                self._check_end()
 
-        if check_status == CheckStatus.unchanged:
+    def _press_ctrl_enter(self, event: tk.Event) -> None:
+        self._press_enter(event)
+        # if not self._is_changed:
+        if self._is_correct_data and self._activity_combobox.current() != -1:
             self._add_button.config(relief=tk.SUNKEN)  # Имитируем нажатие кнопки
             self._add_button.after(
                 100, lambda: self._add_button.config(relief=tk.RAISED)
@@ -224,7 +347,7 @@ class ManualInputOfSubsession:
 
     def _add(self):
         if self._activity_combobox.current() == -1:
-            messagebox.showerror("Ошибка", "Вы не выбрали активность!")
+            self._call_msgbox("Вы не выбрали активность!")
             return
         
     def _exit(self, _: tk.Event | None = None) -> None:
