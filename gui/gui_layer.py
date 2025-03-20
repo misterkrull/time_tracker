@@ -54,7 +54,9 @@ class GuiLayer:
 
         # Создаем метку для отображения номера текущей сессии
         self.current_session_number_label = tk.Label(
-            top_frame, text=self.app.session.id, font=("Helvetica", 18)
+            top_frame,
+            text=self.app.session.id if self.app.session.id is not None else "--",
+            font=("Helvetica", 18)
         )
         self.current_session_number_label.pack(side=tk.LEFT, padx=10)  # Отступ между метками
 
@@ -68,9 +70,12 @@ class GuiLayer:
         start_sess_datetime_label_text = (
             time_to_string(self.app.session.start_time)
             if self.app.session.is_active()
-            else duration_to_string(self.app.session.duration)
+            else (
+                duration_to_string(self.app.session.duration)
+                if self.app.session.id is not None
+                else "--:--:--"
+            )
         )
-
         self.start_sess_datetime_label = tk.Label(
             top_frame,
             text=start_sess_datetime_label_text,

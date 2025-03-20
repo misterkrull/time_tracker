@@ -1,4 +1,3 @@
-from collections import defaultdict
 import os
 import sqlite3
 
@@ -111,7 +110,7 @@ class DB:
             )
             self._cur.execute(
                 "INSERT INTO app_state VALUES (" + ", ".join("?" * len(DEFAULT_APP_STATE)) + ")",
-                DEFAULT_APP_STATE.values(),
+                list(DEFAULT_APP_STATE.values()),
             )
 
         # создаём таблицу sessions
@@ -163,13 +162,15 @@ class DB:
             "SELECT id, start_sess_datetime, end_sess_datetime FROM sessions ORDER BY id DESC LIMIT 1"
         )
         session_db_data = self._cur.fetchone()
+        if session_db_data is None:
+            return None
         self._cur.execute(
             "SELECT activity, start_subs_datetime, end_subs_datetime FROM subsessions "
             "WHERE session_number = ?",
             (session_db_data[0],),
         )
-        subsession_db_data_list = self._cur.fetchall()
-        session = _db_data_to_session(*session_db_data, subsession_db_data_list)
+        subsession_list_db_data = self._cur.fetchall()
+        session = _db_data_to_session(*session_db_data, subsession_list_db_data)
         return session
 
     def add_session(self, session: Session) -> int:
