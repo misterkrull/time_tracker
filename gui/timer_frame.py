@@ -22,13 +22,13 @@ class TimerFrame:
     ):
         self.id = id
         self.activity_id = activity_id
-
-        self._is_master = False
-        self._is_active = False
-        self._is_session_active = False
         self._activity_table = activity_table
         self._duration_table = duration_table
         self._on_start_button = on_start_button
+
+        self._time_counter_duration: int = 0
+        self._current_activity_id: int | None = None
+        self._is_master = False
 
         self._init_widgets(main_frame)
 
@@ -74,33 +74,35 @@ class TimerFrame:
 
     def _select_activity(self, _: tk.Event):
         self.activity_id = list(self._activity_table.keys())[self._gui_combobox.current()]
-        self._is_active = False
         self._update_widgets_state()
 
-    def _update_widgets_state(self, time_counter_duration: int = 0):
+    def _update_widgets_state(self):
         self._gui_label.config(bg=TK_IS_GREEN_COLORED[self._is_master])
         self._gui_combobox.config(
-            state=TK_COMBOBOX_STATE[self._is_session_active and not self._is_master]
-        )
-        self._gui_label.config(
-            text=duration_to_string(self._duration_table[self.activity_id] + time_counter_duration)
-        )
-        self._gui_start_button.config(
-            state=TK_BUTTON_STATES[self._is_session_active and not self._is_active]
+            state=TK_COMBOBOX_STATE[not self._is_master]
         )
 
-    def make_master(self) -> None:
-        self._is_master = True
-        self._is_active = True
+        addition = self._time_counter_duration if self.activity_id == self._current_activity_id else 0
+        self._gui_label.config(
+            text=duration_to_string(self._duration_table[self.activity_id] + addition)
+        )
+
+    def setup_master(self, is_master: bool) -> None:
+        self._is_master = is_master
         self._update_widgets_state()
 
-    def reset(self, new_duration_table: dict[int, int], is_session_active: bool) -> None:
+    def reset(self, new_duration_table: dict[int, int]) -> None:
         self._is_master = False
-        self._is_active = False
-        self._is_session_active = is_session_active
+        self._time_counter_duration = 0
+        self._current_activity_id = None
+        self.update_duration_table(new_duration_table)
+
+    def update_duration_table(self, new_duration_table: dict[int, int]) -> None:
         self._duration_table = new_duration_table
         self._update_widgets_state()
 
-    def update_time_label(self, time_counter_duration: int):
-        self._is_active = True
-        self._update_widgets_state(time_counter_duration)
+    def update_time(self, time_counter_duration: int, current_activity_id: int) -> None:
+        self._time_counter_duration = time_counter_duration
+        self._current_activity_id = current_activity_id
+        if self.activity_id == current_activity_id:
+            self._update_widgets_state()

@@ -2,6 +2,7 @@ import enum
 import time
 import tkinter as tk
 from tkinter import messagebox, ttk
+from typing import Callable
 
 from common_functions import parse_time, duration_to_string, parse_duration, time_to_string
 
@@ -12,9 +13,10 @@ class CheckStatus(enum.Enum):
 
 
 class ManualInputOfSubsession:
-    def __init__(self, tk_root: tk.Tk, activities_names: dict[int, str]):
+    def __init__(self, tk_root: tk.Tk, activities_names: dict[int, str], add_subsession: Callable):
         self._tk_root = tk_root  # пока временно ставлю, мб потом уберу
         self._activities_names = activities_names
+        self._add_subsession = add_subsession
 
         self._start = int(time.time())
         self._duration: int = 0
@@ -78,11 +80,11 @@ class ManualInputOfSubsession:
         self._activity_combobox.place(x=180, y=12, width=170)
         self._activity_combobox.bind("<<ComboboxSelected>>", self._set_okbutton_state)
 
-        # Начало субсесии
+        # Начало подсессии
         self._start_label = tk.Label(
             self._dialog_window,
             anchor='w',
-            text='Начало субсессии:',
+            text='Начало подсессии:',
             font=("Segoe UI", 10)
         )
         self._start_label.place(x=45, y=44, height=21)
@@ -96,10 +98,10 @@ class ManualInputOfSubsession:
         self._start_input.bind("<Key>", self._validate_inputing_symbols_startend)
         self._start_input.bind("<FocusOut>", self._check_start)
 
-        # Длительность субсессии
+        # Длительность подсессии
         self._duration_label = tk.Label(
             self._dialog_window,
-            text='Длительность субсессии:',
+            text='Длительность подсессии:',
             font=("Segoe UI", 10)
         )
         self._duration_label.place(x=20, y=75, height=21, width=170)
@@ -113,10 +115,10 @@ class ManualInputOfSubsession:
         self._duration_input.bind("<Key>", self._validate_inputing_symbols_duration)
         self._duration_input.bind("<FocusOut>", self._check_duration)
 
-        # Конец субсессии
+        # Конец подсессии
         self._end_label = tk.Label(
             self._dialog_window,
-            text='Конец субсессии:',
+            text='Конец подсессии:',
             font=("Segoe UI", 10)
         )
         self._end_label.place(x=210, y=75, width=170)
@@ -129,7 +131,7 @@ class ManualInputOfSubsession:
         self._end_input.bind("<Key>", self._validate_inputing_symbols_startend)
         self._end_input.bind("<FocusOut>", self._check_end)
 
-        # Кнопка "Добавить субсесиию"
+        # Кнопка "Добавить подсесиию"
         self._add_button = tk.Button(
             self._dialog_window,
             text='Добавить подсессию',
@@ -275,7 +277,7 @@ class ManualInputOfSubsession:
         if _end < self._start:
             self._end_input.delete(0, tk.END)
             self._end_input.insert(0, time_to_string(_end))
-            self._call_msgbox("Конец субсессии должен быть после её начала!")
+            self._call_msgbox("Конец подсессии должен быть после её начала!")
             self._force_focus_set(self._end_input)
             self._end_text = _end_text
             self._is_changed = True
@@ -333,12 +335,24 @@ class ManualInputOfSubsession:
         if self._is_correct_data and self._activity_combobox.current() != -1:
             self._add_button.config(relief=tk.SUNKEN)  # Имитируем нажатие кнопки
             self._add_button.after(
-                100, lambda: self._add_button.config(relief=tk.RAISED)
+                270, lambda: self._add_button.config(relief=tk.RAISED)
             )  # Имитируем отпускание кнопки
-            self._add()
-
+            self._save_subsession()
+            
     def _add(self):
-        pass
+        if self._tk_root.focus_get().winfo_name() == self._start_input.winfo_name():
+            self._check_start()
+        if self._tk_root.focus_get().winfo_name() == self._duration_input.winfo_name():
+            self._check_duration()
+        if self._tk_root.focus_get().winfo_name() ==  self._end_input.winfo_name():
+            self._check_end()
+        
+        if self._is_correct_data and self._activity_combobox.current() != -1:
+            self._save_subsession()
+
+    def _save_subsession(self):
+        activity_id = list(self._activities_names.keys())[self._activity_combobox.current()]
+        self._add_subsession(self._start, self._end, activity_id)
 
     def _exit(self, _: tk.Event | None = None) -> None:
         self._dialog_window.destroy()

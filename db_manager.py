@@ -145,10 +145,10 @@ class DB:
     def __del__(self):
         self._conn.close()
 
-    def add_last_subsession(self, session: Session) -> None:
+    def add_subsession(self, session: Session, subsession_number: int) -> None:
         self._cur.execute(
             "INSERT INTO subsessions VALUES (NULL, ?, ?, ?, ?, ?)",
-            (session.id, *_subsession_to_db_data(session.subsessions[-1])),
+            (session.id, *_subsession_to_db_data(session.subsessions[subsession_number])),
         )
         self.update_session(session, need_commit=False)
         self._conn.commit()
