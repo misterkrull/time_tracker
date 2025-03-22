@@ -335,7 +335,7 @@ class ManualInputOfSubsession:
         if self._is_correct_data and self._activity_combobox.current() != -1:
             self._add_button.config(relief=tk.SUNKEN)  # Имитируем нажатие кнопки
             self._add_button.after(
-                270, lambda: self._add_button.config(relief=tk.RAISED)
+                200, lambda: self._add_button.config(relief=tk.RAISED)
             )  # Имитируем отпускание кнопки
             self._save_subsession()
             
@@ -351,8 +351,20 @@ class ManualInputOfSubsession:
             self._save_subsession()
 
     def _save_subsession(self):
-        activity_id = list(self._activities_names.keys())[self._activity_combobox.current()]
-        self._add_subsession(self._start, self._end, activity_id)
+        if messagebox.askokcancel(
+            "Создание новой подсессии",
+            (
+                "Будет создана следующая подсессия:\n"
+               f" - активность:     {self._activities_names[self._activity_combobox.current() + 1]}\n"
+               f" - начало:            {self._start_text}\n"
+               f" - длительность: {self._duration_text}\n"
+               f" - окончание:     {self._end_text}\n"
+                "\n"
+                "Создаём?"
+            )
+        ):
+            activity_id = list(self._activities_names.keys())[self._activity_combobox.current()]
+            self._add_subsession(self._start, self._end, activity_id)
 
     def _exit(self, _: tk.Event | None = None) -> None:
         self._dialog_window.destroy()
