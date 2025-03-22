@@ -145,6 +145,7 @@ class GuiLayer:
             command=self._manual_input_of_subsession,
             font=("Helvetica", 8),
             width=12,
+            state=TK_BUTTON_STATES[self.app.session.is_active()]
         )
         self.manual_input_button.place(x=MAIN_WINDOW_X - 95, y=200)
 
@@ -165,6 +166,7 @@ class GuiLayer:
         for timer in self.timer_frame_list:
             timer._gui_start_button.config(state=TK_BUTTON_STATES[self.app.session.is_active()])
         self.stop_timers_button.config(state=TK_BUTTON_STATES[self.time_counter.is_running()])
+        self.manual_input_button.config(state=TK_BUTTON_STATES[self.app.session.is_active()])
 
     def _terminate_session(self, end_time: int) -> None:
         self.on_stop_timers_button()
