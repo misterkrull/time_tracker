@@ -151,12 +151,17 @@ class ManualInputOfSubsession:
         self._exit_button.place(x=332, y=145, height=28, width=60)
 
     def _set_values(self) -> None:
+        self._start_text = time_to_string(self._start)
         self._start_input.delete(0, tk.END)
-        self._start_input.insert(0, time_to_string(self._start))
+        self._start_input.insert(0, self._start_text)
+
+        self._duration_text = duration_to_string(self._duration)
         self._duration_input.delete(0, tk.END)
-        self._duration_input.insert(0, duration_to_string(self._duration))
+        self._duration_input.insert(0, self._duration_text)
+        
+        self._end_text = time_to_string(self._end)
         self._end_input.delete(0, tk.END)
-        self._end_input.insert(0, time_to_string(self._end))
+        self._end_input.insert(0, self._end_text)
 
     def _validate_inputing_symbols_startend(self, event: tk.Event) -> None | str:
         # пропускаем управляющие клавиши -- иначе он их блокирует
@@ -205,12 +210,10 @@ class ManualInputOfSubsession:
                 self._is_changed = False
             else:
                 _blink(self._start_input)
-                self._start_text = _start_text
                 self._is_changed = True
             return
         else:
             self._start = _start
-            self._start_text = _start_text
             self._end = self._start + self._duration
             _blink(self._end_input)
             self._set_values()
@@ -244,12 +247,10 @@ class ManualInputOfSubsession:
                 self._is_changed = False
             else:
                 _blink(self._duration_input)
-                self._duration_text = _duration_text
                 self._is_changed = True
             return
         else:
             self._duration = _duration
-            self._duration_text = _duration_text
             self._end = self._start + self._duration
             _blink(self._end_input)
             self._set_values()
@@ -293,12 +294,10 @@ class ManualInputOfSubsession:
                 self._is_changed = False
             else:
                 _blink(self._end_input)
-                self._end_text = _end_text
                 self._is_changed = True
             return
         else:
             self._end = _end
-            self._end_text = _end_text
             self._duration = self._end - self._start
             _blink(self._duration_input)
             self._set_values()
