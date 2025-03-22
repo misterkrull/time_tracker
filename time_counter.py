@@ -1,5 +1,4 @@
 import time
-import threading
 import tkinter
 from typing import Callable
 

@@ -34,8 +34,8 @@ def _db_data_to_subsession(activity_id: int, start_time_str: str, end_time_str: 
     )
 
 
-def _get_activity_durations(session: Session) -> list[int]:
-    durations_by_activity = [0] * len(DEFAULT_ACTIVITIES)
+def _get_activity_durations(session: Session, activities_count: int) -> list[int]:
+    durations_by_activity = [0] * activities_count
     for subs in session.subsessions:
         # TODO: Здесь потенциальный баг, потому что id в базе
         # не обязаны идти по порядку и совпадать с порядковым индексом списка -1,
@@ -49,7 +49,7 @@ def _get_activity_duration_total(session: Session) -> int:
     return sum(map(lambda sub: sub.duration, session.subsessions))
 
 
-def _session_to_db_data(session: Session) -> tuple:
+def _session_to_db_data(session: Session, activities_count: int) -> tuple:
     return (
         time_to_string(session.start_time),
         time_to_string(session.end_time),
@@ -57,7 +57,7 @@ def _session_to_db_data(session: Session) -> tuple:
         duration_to_string(session.duration),
         len(session.subsessions),
         duration_to_string(_get_activity_duration_total(session)),
-        *[duration_to_string(act_duration) for act_duration in _get_activity_durations(session)],
+        *[duration_to_string(act_duration) for act_duration in _get_activity_durations(session, activities_count)],
     )
 
 
@@ -81,7 +81,7 @@ class DB:
     def __init__(self):
         self._conn = sqlite3.connect(os.path.join(MY_PATH, DB_FILENAME))
         self._cur = self._conn.cursor()
-        self._activity_count: int = None
+        self._activities_count: int = None
 
         # создаём таблицу activities
         # сперва проверяем, есть ли такая; если нет - создаём и заполняем стартовыми данными
@@ -176,9 +176,9 @@ class DB:
     def add_session(self, session: Session) -> int:
         """Вставляет сессию в базу (без подсессий) и возвращает id записи."""
 
-        activities_placeholder = ", ?" * len(DEFAULT_ACTIVITIES)
+        activities_placeholder = ", ?" * self._activities_count
         sql_query = f"INSERT INTO sessions VALUES (NULL, ?, ?, ?, ?, ?{activities_placeholder})"
-        self._cur.execute(sql_query, _session_to_db_data(session))
+        self._cur.execute(sql_query, _session_to_db_data(session, self._activities_count))
         res = self._cur.lastrowid
         self._conn.commit()
         return res
@@ -189,7 +189,7 @@ class DB:
         need_commit: bool = True,
     ) -> None:
         activities_placeholder = ",".join(
-            f"sess_duration_total_act{index + 1} = ?" for index in range(len(DEFAULT_ACTIVITIES))
+            f"sess_duration_total_act{index + 1} = ?" for index in range(self._activities_count)
         )
 
         self._cur.execute(
@@ -203,7 +203,7 @@ class DB:
             "sess_duration_total_acts_all = ?,"
             f"{activities_placeholder}"
             "WHERE id = ?",
-            (*_session_to_db_data(session), session.id),
+            (*_session_to_db_data(session, self._activities_count), session.id),
         )
 
         if need_commit:
@@ -211,7 +211,9 @@ class DB:
 
     def get_activity_table(self) -> dict[int, str]:
         self._cur.execute("SELECT id, title FROM activities")
-        return dict(self._cur.fetchall())
+        activities_table = dict(self._cur.fetchall())
+        self._activities_count = len(activities_table)
+        return activities_table
 
     def load_all_timers_activity_ids(self) -> list[int]:
         self._cur.execute("SELECT * FROM app_state")
