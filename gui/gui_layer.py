@@ -231,7 +231,7 @@ class GuiLayer:
         self.stop_timers_button.config(state=TK_BUTTON_STATES[True])
         self.retroactively_terminate_session_button.config(state=TK_BUTTON_STATES[False])
 
-    @print_performance
+    # @print_performance
     def on_stop_timers_button(self):
         """
         Запускается при нажатии на кнопку "Стоп"
