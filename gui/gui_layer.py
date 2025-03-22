@@ -35,8 +35,6 @@ class GuiLayer:
         self._init_middle_widgets()
         self._init_bottom_widgets()
 
-        self._draw_session_state()
-
         # ГОРЯЧИЕ КЛАВИШИ -  имитируем нажатие нарисованных кнопок
         # keyboard.add_hotkey("Alt+F10", self.start_button[1].invoke)
         # keyboard.add_hotkey("Alt+F11", self.stop_button.invoke)
@@ -96,13 +94,12 @@ class GuiLayer:
             top_frame,
             font=("Helvetica", 8),
             text="Задним\nчислом",
-            state=TK_BUTTON_STATES[self.app.session.is_active()],
             command=self._retroactively_terminate_session,
         )
         self.retroactively_terminate_session_button.pack(side=tk.LEFT, padx=4, ipady=0)
         self.retroactively_terminate_session_button.config(
             state=TK_BUTTON_STATES[
-                len(self.app.session.subsessions) > 0 and self.app.session.is_active()
+                self.app.session.is_active() and len(self.app.session.subsessions) > 0
             ]
         )
 
@@ -122,7 +119,8 @@ class GuiLayer:
                     self.app.activity_table,
                     duration_table,
                     main_frame,
-                    on_start_button=self.on_start_timer_button,
+                    self.on_start_timer_button,
+                    self.app.session.is_active()
                 )
             )
 
@@ -161,9 +159,9 @@ class GuiLayer:
             self.current_session_number_label.config(text=self.app.session.id)
 
         self.session_label.config(text=SESSION_LABEL_DICT[self.app.session.is_active()])
-        self.session_button.config(text=SESSION_BUTTON_DICT[self.app.session.is_active()])
-
+        self.session_button.config(text=SESSION_BUTTON_DICT[self.app.session.is_active()]) 
         self.retroactively_terminate_session_button.config(state=TK_BUTTON_STATES[False])
+
         for timer in self.timer_frame_list:
             timer._gui_start_button.config(state=TK_BUTTON_STATES[self.app.session.is_active()])
         self.stop_timers_button.config(state=TK_BUTTON_STATES[self.time_counter.is_running()])

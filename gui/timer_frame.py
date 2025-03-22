@@ -19,12 +19,14 @@ class TimerFrame:
         duration_table: dict[int, int],
         main_frame: tk.Frame,
         on_start_button: Callable[[int], None],
+        is_session_active: bool
     ):
         self.id = id
         self.activity_id = activity_id
         self._activity_table = activity_table
         self._duration_table = duration_table
         self._on_start_button = on_start_button
+        self._is_session_active = is_session_active
 
         self._time_counter_duration: int = 0
         self._current_activity_id: int | None = None
@@ -68,7 +70,7 @@ class TimerFrame:
             font=("Helvetica", 14),
             width=10,
             height=1,
-            state=TK_BUTTON_STATES[True],
+            state=TK_BUTTON_STATES[self._is_session_active],
         )
         self._gui_start_button.pack(pady=5)
 
