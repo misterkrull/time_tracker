@@ -217,7 +217,18 @@ class DB:
 
     def load_all_timers_activity_ids(self) -> list[int]:
         self._cur.execute("SELECT * FROM app_state")
-        return self._cur.fetchall()[0]
+        app_state_table = list(self._cur.fetchall()[0])
+        if len(app_state_table) >= TIMER_FRAME_COUNT:
+            app_state_table = app_state_table[:TIMER_FRAME_COUNT]
+        else:
+            for i in range(len(app_state_table), TIMER_FRAME_COUNT):
+                app_state_table.append(i+1)
+                self._cur.execute(f"ALTER TABLE app_state ADD COLUMN activity_in_timer{i+1} INTEGER")
+            self._cur.execute("UPDATE app_state SET " + ", ".join(
+                [f"activity_in_timer{i+1} = '{app_state_table[i]}'" for i in range(0, TIMER_FRAME_COUNT)]
+            ))
+            self._conn.commit()
+        return app_state_table
 
     def save_all_timers_activity_ids(self, activity_ids: list[int]) -> None:
         self._cur.execute(

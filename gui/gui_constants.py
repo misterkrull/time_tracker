@@ -1,4 +1,7 @@
-MAIN_WINDOW_X = 1070  # вообще 678, но для теста 5 таймеров нужно 1070
+TIMER_FRAME_COUNT = 5
+
+# для 3 таймеров (и для прода) нужно 678, для пяти таймеров хорошо 1070
+MAIN_WINDOW_X = 1070
 MAIN_WINDOW_Y = 250
 
 BACKGROUND_COLOR = "SystemButtonFace"  # дефолтный виндовый цвет окон, типа серый такой
@@ -9,4 +12,3 @@ TK_IS_GREEN_COLORED = {True: "green", False: BACKGROUND_COLOR}
 
 SESSION_BUTTON_DICT = {True: "Завершить сессию", False: "Новая сессия"}
 SESSION_LABEL_DICT = {True: "Началась: ", False: "Длилась: "}
-TIMER_FRAME_COUNT = 5
