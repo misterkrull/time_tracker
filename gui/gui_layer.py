@@ -4,10 +4,11 @@ import tkinter as tk
 
 from common_functions import duration_to_string, print_performance, time_to_string
 from gui.gui_constants import (
-    SESSION_BUTTON_DICT,
-    SESSION_LABEL_DICT,
+    MAIN_WINDOW_X, MAIN_WINDOW_Y,
+    SESSION_BUTTON_DICT, SESSION_LABEL_DICT,
     TK_BUTTON_STATES,
 )
+from gui.manual_input_of_subsession import ManualInputOfSubsession
 from gui.retroactively_termination_of_session import RetroactivelyTerminationOfSession
 from gui.timer_frame import TimerFrame
 from application_logic import ApplicationLogic
@@ -20,13 +21,15 @@ class GuiLayer:
         self.app = app
 
         self.root.title("Мой трекер")
-        self.root.geometry("678x250")  # Устанавливаем размер окна
+        self.root.geometry(f"{MAIN_WINDOW_X}x{MAIN_WINDOW_Y}")  # Устанавливаем размер окна
+        self.root.resizable(False, False)  # Запрещаем изменение размеров
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)  # определяем метод закрытия окна
         self.DEFAULT_WIN_COLOR = self.root.cget("background")
 
         self.time_counter = TimeCounter(
             tk_root=self.root, on_tick_function=self.on_time_counter_tick
         )
+        self._current_activity_id: int| None = None
 
         self._init_top_widgets()
         self._init_middle_widgets()
@@ -48,7 +51,9 @@ class GuiLayer:
 
         # Создаем метку для отображения номера текущей сессии
         self.current_session_number_label = tk.Label(
-            top_frame, text=self.app.session.id, font=("Helvetica", 18)
+            top_frame,
+            text=self.app.session.id if self.app.session.id is not None else "--",
+            font=("Helvetica", 18)
         )
         self.current_session_number_label.pack(side=tk.LEFT, padx=10)  # Отступ между метками
 
@@ -62,9 +67,12 @@ class GuiLayer:
         start_sess_datetime_label_text = (
             time_to_string(self.app.session.start_time)
             if self.app.session.is_active()
-            else duration_to_string(self.app.session.duration)
+            else (
+                duration_to_string(self.app.session.duration)
+                if self.app.session.id is not None
+                else "--:--:--"
+            )
         )
-
         self.start_sess_datetime_label = tk.Label(
             top_frame,
             text=start_sess_datetime_label_text,
@@ -86,13 +94,12 @@ class GuiLayer:
             top_frame,
             font=("Helvetica", 8),
             text="Задним\nчислом",
-            state=TK_BUTTON_STATES[self.app.session.is_active()],
             command=self._retroactively_terminate_session,
         )
         self.retroactively_terminate_session_button.pack(side=tk.LEFT, padx=4, ipady=0)
         self.retroactively_terminate_session_button.config(
             state=TK_BUTTON_STATES[
-                len(self.app.session.subsessions) > 0 and self.app.session.is_active()
+                self.app.session.is_active() and len(self.app.session.subsessions) > 0
             ]
         )
 
@@ -112,13 +119,14 @@ class GuiLayer:
                     self.app.activity_table,
                     duration_table,
                     main_frame,
-                    on_start_button=self.on_start_timer_button,
+                    self.on_start_timer_button,
+                    self.app.session.is_active()
                 )
             )
-        self._reset_timer_frames()
 
     def _init_bottom_widgets(self):
-        """Кнопка "Стоп" внизу"""
+        """Создает нижние кнопки: "Стоп" и "Ручной ввод подсессии" """
+        # Кнопка "Стоп"
         self.stop_timers_button = tk.Button(
             self.root,
             text="Стоп",
@@ -130,10 +138,21 @@ class GuiLayer:
         )
         self.stop_timers_button.pack(pady=10)
 
+        # Кнопка "Ручной ввод подсессии"
+        self.manual_input_button = tk.Button(
+            self.root,
+            text="Ручной ввод\nподсессии",
+            command=self._manual_input_of_subsession,
+            font=("Helvetica", 8),
+            width=12,
+            state=TK_BUTTON_STATES[self.app.session.is_active()]
+        )
+        self.manual_input_button.place(x=MAIN_WINDOW_X - 95, y=200)
+
     def _reset_timer_frames(self):
         new_duration_table = self.app.get_duration_table()
         for timer_frame in self.timer_frame_list:
-            timer_frame.reset(new_duration_table, self.app.session.is_active())
+            timer_frame.reset(new_duration_table)
 
     def _draw_session_state(self):
         if self.app.session.is_active():
@@ -141,18 +160,18 @@ class GuiLayer:
             self.current_session_number_label.config(text=self.app.session.id)
 
         self.session_label.config(text=SESSION_LABEL_DICT[self.app.session.is_active()])
-        self.session_button.config(text=SESSION_BUTTON_DICT[self.app.session.is_active()])
-
+        self.session_button.config(text=SESSION_BUTTON_DICT[self.app.session.is_active()]) 
         self.retroactively_terminate_session_button.config(state=TK_BUTTON_STATES[False])
+
         for timer in self.timer_frame_list:
             timer._gui_start_button.config(state=TK_BUTTON_STATES[self.app.session.is_active()])
         self.stop_timers_button.config(state=TK_BUTTON_STATES[self.time_counter.is_running()])
+        self.manual_input_button.config(state=TK_BUTTON_STATES[self.app.session.is_active()])
 
     def _terminate_session(self, end_time: int) -> None:
         self.on_stop_timers_button()
         session_duration = self.app.terminate_session(end_time)
         self.start_sess_datetime_label.config(text=duration_to_string(session_duration))
-        self._reset_timer_frames()
         self._draw_session_state()
 
     def _start_session(self, start_time: int) -> None:
@@ -169,8 +188,24 @@ class GuiLayer:
 
     def _retroactively_terminate_session(self):
         RetroactivelyTerminationOfSession(
-            self.root, self.app.session.subsessions[-1].end_time, self._terminate_session
+            self.root,
+            self.app.session.subsessions[self.app.session.current_subsession].end_time,
+            self._terminate_session
         )
+
+    def _manual_input_of_subsession(self):
+        # вот тут конечно костыль, вызванный перреставлением этого словаря в другое место
+        # TODO придумать, куда деть этот словарь
+        _timer_activity_names: dict[int, str] = {
+            k: f"{k}. {v}" for (k, v) in self.app.activity_table.items()
+        }
+        ManualInputOfSubsession(self.root, _timer_activity_names, self._add_subsession_manually)
+
+    def _add_subsession_manually(self, start_time: int, end_time: int, activity_id: int) -> None:
+        self.app.add_subsession_manually(start_time, end_time, activity_id)
+        new_duration_table = self.app.get_duration_table()
+        for timer_frame in self.timer_frame_list:
+            timer_frame.update_duration_table(new_duration_table)
 
     def _on_closing(self):
         self.on_stop_timers_button()
@@ -181,18 +216,22 @@ class GuiLayer:
 
     def on_start_timer_button(self, id: int) -> None:
         """Запускается при нажатии на кнопку "Старт" у таймера"""
-        if self.time_counter.is_running():
-            stop_time: int = self.time_counter.stop()
-            self.app.terminate_subsession(stop_time)
+        if self.timer_frame_list[id].activity_id != self._current_activity_id:
+            if self.time_counter.is_running():
+                stop_time: int = self.time_counter.stop()
+                self.app.terminate_subsession(stop_time)
 
-        start_time: int = self.time_counter.start()
-        self.app.start_subsession(start_time, self.timer_frame_list[id].activity_id)
-        self._reset_timer_frames()
-        self.timer_frame_list[id].make_master()
+            start_time: int = self.time_counter.start()
+            self._current_activity_id = self.timer_frame_list[id].activity_id
+            self.app.start_subsession(start_time, self._current_activity_id)
+            self._reset_timer_frames()
+        for timer in self.timer_frame_list:
+            timer.setup_master(timer.id == id)
+
         self.stop_timers_button.config(state=TK_BUTTON_STATES[True])
         self.retroactively_terminate_session_button.config(state=TK_BUTTON_STATES[False])
 
-    @print_performance
+    # @print_performance
     def on_stop_timers_button(self):
         """
         Запускается при нажатии на кнопку "Стоп"
@@ -201,6 +240,7 @@ class GuiLayer:
             return
 
         stop_time: int = self.time_counter.stop()
+        self._current_activity_id = None
 
         self.stop_timers_button.config(state=TK_BUTTON_STATES[False])
         self.retroactively_terminate_session_button.config(state=TK_BUTTON_STATES[True])
@@ -212,7 +252,5 @@ class GuiLayer:
         self._reset_timer_frames()
 
     def on_time_counter_tick(self, current_duration: int):
-        current_activity_id = self.app.session.subsessions[-1].activity_id
         for timer in self.timer_frame_list:
-            if timer.activity_id == current_activity_id:
-                timer.update_time_label(current_duration)
+            timer.update_time(current_duration, self._current_activity_id)

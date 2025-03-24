@@ -1,4 +1,3 @@
-from collections import defaultdict
 import os
 import sqlite3
 
@@ -35,8 +34,8 @@ def _db_data_to_subsession(activity_id: int, start_time_str: str, end_time_str: 
     )
 
 
-def _get_activity_durations(session: Session) -> list[int]:
-    durations_by_activity = [0] * len(DEFAULT_ACTIVITIES)
+def _get_activity_durations(session: Session, activities_count: int) -> list[int]:
+    durations_by_activity = [0] * activities_count
     for subs in session.subsessions:
         # TODO: Здесь потенциальный баг, потому что id в базе
         # не обязаны идти по порядку и совпадать с порядковым индексом списка -1,
@@ -50,7 +49,7 @@ def _get_activity_duration_total(session: Session) -> int:
     return sum(map(lambda sub: sub.duration, session.subsessions))
 
 
-def _session_to_db_data(session: Session) -> tuple:
+def _session_to_db_data(session: Session, activities_count: int) -> tuple:
     return (
         time_to_string(session.start_time),
         time_to_string(session.end_time),
@@ -58,7 +57,7 @@ def _session_to_db_data(session: Session) -> tuple:
         duration_to_string(session.duration),
         len(session.subsessions),
         duration_to_string(_get_activity_duration_total(session)),
-        *[duration_to_string(act_duration) for act_duration in _get_activity_durations(session)],
+        *[duration_to_string(act_duration) for act_duration in _get_activity_durations(session, activities_count)],
     )
 
 
@@ -82,7 +81,7 @@ class DB:
     def __init__(self):
         self._conn = sqlite3.connect(os.path.join(MY_PATH, DB_FILENAME))
         self._cur = self._conn.cursor()
-        self._activity_count: int = None
+        self._activities_count: int = None
 
         # создаём таблицу activities
         # сперва проверяем, есть ли такая; если нет - создаём и заполняем стартовыми данными
@@ -111,7 +110,7 @@ class DB:
             )
             self._cur.execute(
                 "INSERT INTO app_state VALUES (" + ", ".join("?" * len(DEFAULT_APP_STATE)) + ")",
-                DEFAULT_APP_STATE.values(),
+                list(DEFAULT_APP_STATE.values()),
             )
 
         # создаём таблицу sessions
@@ -146,10 +145,10 @@ class DB:
     def __del__(self):
         self._conn.close()
 
-    def add_last_subsession(self, session: Session) -> None:
+    def add_subsession(self, session: Session, subsession_number: int) -> None:
         self._cur.execute(
             "INSERT INTO subsessions VALUES (NULL, ?, ?, ?, ?, ?)",
-            (session.id, *_subsession_to_db_data(session.subsessions[-1])),
+            (session.id, *_subsession_to_db_data(session.subsessions[subsession_number])),
         )
         self.update_session(session, need_commit=False)
         self._conn.commit()
@@ -163,21 +162,23 @@ class DB:
             "SELECT id, start_sess_datetime, end_sess_datetime FROM sessions ORDER BY id DESC LIMIT 1"
         )
         session_db_data = self._cur.fetchone()
+        if session_db_data is None:
+            return None
         self._cur.execute(
             "SELECT activity, start_subs_datetime, end_subs_datetime FROM subsessions "
             "WHERE session_number = ?",
             (session_db_data[0],),
         )
-        subsession_db_data_list = self._cur.fetchall()
-        session = _db_data_to_session(*session_db_data, subsession_db_data_list)
+        subsession_list_db_data = self._cur.fetchall()
+        session = _db_data_to_session(*session_db_data, subsession_list_db_data)
         return session
 
     def add_session(self, session: Session) -> int:
         """Вставляет сессию в базу (без подсессий) и возвращает id записи."""
 
-        activities_placeholder = ", ?" * len(DEFAULT_ACTIVITIES)
+        activities_placeholder = ", ?" * self._activities_count
         sql_query = f"INSERT INTO sessions VALUES (NULL, ?, ?, ?, ?, ?{activities_placeholder})"
-        self._cur.execute(sql_query, _session_to_db_data(session))
+        self._cur.execute(sql_query, _session_to_db_data(session, self._activities_count))
         res = self._cur.lastrowid
         self._conn.commit()
         return res
@@ -188,7 +189,7 @@ class DB:
         need_commit: bool = True,
     ) -> None:
         activities_placeholder = ",".join(
-            f"sess_duration_total_act{index + 1} = ?" for index in range(len(DEFAULT_ACTIVITIES))
+            f"sess_duration_total_act{index + 1} = ?" for index in range(self._activities_count)
         )
 
         self._cur.execute(
@@ -202,7 +203,7 @@ class DB:
             "sess_duration_total_acts_all = ?,"
             f"{activities_placeholder}"
             "WHERE id = ?",
-            (*_session_to_db_data(session), session.id),
+            (*_session_to_db_data(session, self._activities_count), session.id),
         )
 
         if need_commit:
@@ -210,11 +211,24 @@ class DB:
 
     def get_activity_table(self) -> dict[int, str]:
         self._cur.execute("SELECT id, title FROM activities")
-        return dict(self._cur.fetchall())
+        activities_table = dict(self._cur.fetchall())
+        self._activities_count = len(activities_table)
+        return activities_table
 
     def load_all_timers_activity_ids(self) -> list[int]:
         self._cur.execute("SELECT * FROM app_state")
-        return self._cur.fetchall()[0]
+        app_state_table = list(self._cur.fetchall()[0])
+        if len(app_state_table) >= TIMER_FRAME_COUNT:
+            app_state_table = app_state_table[:TIMER_FRAME_COUNT]
+        else:
+            for i in range(len(app_state_table), TIMER_FRAME_COUNT):
+                app_state_table.append(i+1)
+                self._cur.execute(f"ALTER TABLE app_state ADD COLUMN activity_in_timer{i+1} INTEGER")
+            self._cur.execute("UPDATE app_state SET " + ", ".join(
+                [f"activity_in_timer{i+1} = '{app_state_table[i]}'" for i in range(0, TIMER_FRAME_COUNT)]
+            ))
+            self._conn.commit()
+        return app_state_table
 
     def save_all_timers_activity_ids(self, activity_ids: list[int]) -> None:
         self._cur.execute(

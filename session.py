@@ -21,6 +21,7 @@ class Session:
     start_time: int = 0
     end_time: int = 0
     subsessions: list[Subsession] = field(default_factory=list)
+    current_subsession: int | None = None
 
     def __post_init__(self):
         if self.end_time == 0:
@@ -31,6 +32,8 @@ class Session:
         return self.end_time - self.start_time
 
     def is_active(self) -> bool:
+        if self.id is None:
+            return False
         return self.start_time == self.end_time
 
     def get_activity_duration(self, activity_id: int) -> int:

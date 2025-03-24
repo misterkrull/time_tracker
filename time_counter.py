@@ -1,5 +1,4 @@
 import time
-import threading
 import tkinter
 from typing import Callable
 
@@ -44,17 +43,11 @@ class TimeCounter:
             func=self._tick,
         )
 
-        # Альтернативный вариант с отдельным потоком:
-        # threading.Timer(
-        #     <интервал в секундах>,
-        #     self._tick
-        # ).start()
-
     def _tick(self):
-        print(
-            1000 * (time.time() - self._start_time),
-            threading.get_ident(),
-        )
+        # print(
+        #     1000 * (time.time() - self._start_time),
+        #     threading.get_ident(),
+        # )
         self._seconds += 1
         self._on_tick_function(self._seconds)
         self._start_tick()

@@ -27,7 +27,15 @@ class ApplicationLogic:
 
     def start_subsession(self, start_time: int, activity_id: int) -> None:
         self.session.subsessions.append(Subsession(start_time=start_time, activity_id=activity_id))
+        self.session.current_subsession = len(self.session.subsessions) - 1  # индекс свежедобавленного элемента
 
     def terminate_subsession(self, end_time: int) -> None:
-        self.session.subsessions[-1].end_time = end_time
-        self.db.add_last_subsession(self.session)
+        self.session.subsessions[self.session.current_subsession].end_time = end_time
+        self.db.add_subsession(self.session, self.session.current_subsession)
+
+    def add_subsession_manually(self, start_time: int, end_time: int, activity_id: int) -> None:
+        subsession = Subsession(start_time=start_time, end_time=end_time, activity_id=activity_id)
+        self.session.subsessions.append(subsession)
+        subsession_number = len(self.session.subsessions) - 1  # индекс свежедобавленного элемента
+        self.db.add_subsession(self.session, subsession_number)
+
