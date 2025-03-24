@@ -3,7 +3,7 @@ TIMER_FRAME_COUNT = 3
 # для 3 таймеров (и для прода) нужно 678, для пяти таймеров хорошо 1070
 MAIN_WINDOW_X = 678
 MAIN_WINDOW_Y = 250
-MAIN_WINDOW_POSITION_X = 678
+MAIN_WINDOW_POSITION_X = 673
 MAIN_WINDOW_POSITION_Y = -768
 
 BACKGROUND_COLOR = "SystemButtonFace"  # дефолтный виндовый цвет окон, типа серый такой
