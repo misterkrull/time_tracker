@@ -4,7 +4,7 @@ import tkinter as tk
 
 from common_functions import duration_to_string, print_performance, time_to_string
 from gui.gui_constants import (
-    MAIN_WINDOW_X, MAIN_WINDOW_Y,
+    MAIN_WINDOW_X, MAIN_WINDOW_Y, MAIN_WINDOW_POSITION_X, MAIN_WINDOW_POSITION_Y,
     SESSION_BUTTON_DICT, SESSION_LABEL_DICT,
     TK_BUTTON_STATES,
 )
@@ -21,7 +21,7 @@ class GuiLayer:
         self.app = app
 
         self.root.title("Мой трекер")
-        self.root.geometry(f"{MAIN_WINDOW_X}x{MAIN_WINDOW_Y}")  # Устанавливаем размер окна
+        self.root.geometry(f"{MAIN_WINDOW_X}x{MAIN_WINDOW_Y}+{MAIN_WINDOW_POSITION_X}+{MAIN_WINDOW_POSITION_Y}")
         self.root.resizable(False, False)  # Запрещаем изменение размеров
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)  # определяем метод закрытия окна
         self.DEFAULT_WIN_COLOR = self.root.cget("background")
