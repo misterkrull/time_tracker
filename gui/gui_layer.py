@@ -1,4 +1,4 @@
-# import keyboard
+import keyboard
 import time
 import tkinter as tk
 
@@ -36,9 +36,14 @@ class GuiLayer:
         self._init_bottom_widgets()
 
         # ГОРЯЧИЕ КЛАВИШИ -  имитируем нажатие нарисованных кнопок
-        # keyboard.add_hotkey("Alt+F10", self.start_button[1].invoke)
-        # keyboard.add_hotkey("Alt+F11", self.stop_button.invoke)
-        # keyboard.add_hotkey("Alt+F12", self.start_button[2].invoke)
+        keyboard.add_hotkey("Alt + F9", self.timer_frame_list[0].gui_start_button.invoke)
+        keyboard.add_hotkey("Alt + F10", self.timer_frame_list[1].gui_start_button.invoke)
+        keyboard.add_hotkey("Alt + F11", self.timer_frame_list[2].gui_start_button.invoke)
+        keyboard.add_hotkey("Alt + F12", self.stop_timers_button.invoke)
+        keyboard.add_hotkey("Alt Gr + F9", self.timer_frame_list[0].gui_start_button.invoke)
+        keyboard.add_hotkey("Alt Gr + F10", self.timer_frame_list[1].gui_start_button.invoke)
+        keyboard.add_hotkey("Alt Gr + F11", self.timer_frame_list[2].gui_start_button.invoke)
+        keyboard.add_hotkey("Alt Gr + F12", self.stop_timers_button.invoke)
 
     def _init_top_widgets(self):
         """Создает фрейм верхней линии"""
@@ -164,7 +169,7 @@ class GuiLayer:
         self.retroactively_terminate_session_button.config(state=TK_BUTTON_STATES[False])
 
         for timer in self.timer_frame_list:
-            timer._gui_start_button.config(state=TK_BUTTON_STATES[self.app.session.is_active()])
+            timer.gui_start_button.config(state=TK_BUTTON_STATES[self.app.session.is_active()])
         self.stop_timers_button.config(state=TK_BUTTON_STATES[self.time_counter.is_running()])
         self.manual_input_button.config(state=TK_BUTTON_STATES[self.app.session.is_active()])
 

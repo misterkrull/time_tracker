@@ -63,7 +63,7 @@ class TimerFrame:
         self._gui_combobox.bind("<<ComboboxSelected>>", self._select_activity)
 
         # Кнопка "Старт <timer_number>"
-        self._gui_start_button = tk.Button(
+        self.gui_start_button = tk.Button(
             timer_frame,
             text=f"Старт {self.id + 1}",
             command=lambda: self._on_start_button(self.id),
@@ -72,7 +72,7 @@ class TimerFrame:
             height=1,
             state=TK_BUTTON_STATES[self._is_session_active],
         )
-        self._gui_start_button.pack(pady=5)
+        self.gui_start_button.pack(pady=5)
 
     def _select_activity(self, _: tk.Event):
         self.activity_id = list(self._activity_table.keys())[self._gui_combobox.current()]
