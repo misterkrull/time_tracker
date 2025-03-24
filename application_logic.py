@@ -9,6 +9,9 @@ class ApplicationLogic:
         self.session: Session | None = self.db.get_last_session()
         if self.session is None:  # случай, если у нас ещё не было ни одной сессии (т.е. новая БД)
             self.session = Session()
+        else:
+            if len(self.session.subsessions) > 0:
+                self.session.current_subsession = len(self.session.subsessions) - 1
 
     def get_duration_table(self):
         return {
