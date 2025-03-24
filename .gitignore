@@ -1,3 +1,10 @@
 **/__pycache__/
+
+/.idea/
+/venv/
+/.vscode/
+
 /app_state.txt
 /time_tracker.db
+/time_tracker.sqbpro
+/tracker заметки.lnk
