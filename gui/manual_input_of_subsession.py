@@ -50,7 +50,7 @@ class ManualInputOfSubsession:
         height = 180
         # задаём расположение окна (используем размеры и расположение родительского окна)
         x = tk_root.winfo_x() + (tk_root.winfo_width() // 2) - width // 2
-        y = tk_root.winfo_y() + (tk_root.winfo_height() // 2) - height // 2
+        y = tk_root.winfo_y() + (tk_root.winfo_height() // 2) - height // 2 + 250
 
         self._dialog_window.geometry(
             f"{width}x{height}+{x}+{y}"
