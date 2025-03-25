@@ -3,8 +3,9 @@ from db_manager import DB
 
 
 class ApplicationLogic:
-    def __init__(self):
-        self.db = DB()
+    def __init__(self, db: DB):
+        self.db = db
+        
         self.activity_table: dict[int, str] = self.db.get_activity_table()
         self.session: Session | None = self.db.get_last_session()
         if self.session is None:  # случай, если у нас ещё не было ни одной сессии (т.е. новая БД)

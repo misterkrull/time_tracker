@@ -1,17 +1,14 @@
-import os
 import sqlite3
+from pathlib import Path
+from typing import Any
 
-from gui.gui_constants import TIMER_FRAME_COUNT
-from session import Session, Subsession
 from common_functions import duration_to_string, parse_time, time_to_string
+from gui.gui_constants import DEFAULT_TIMER_FRAME_COUNT
+from session import Session, Subsession
 
-MY_PATH = os.path.dirname(os.path.abspath(__file__))
+
 DB_FILENAME = "time_tracker.db"
 DEFAULT_ACTIVITIES = ["IT", "Английский", "Уборка", "Йога", "Помощь маме"]
-DEFAULT_APP_STATE = {
-    f"activity_in_timer{num + 1}": num % len(DEFAULT_ACTIVITIES) + 1
-    for num in range(TIMER_FRAME_COUNT)
-}
 
 # Значение "---" использовалось в старой версии базы для обозначения конца не завершенной сессии
 _LEGACY_ZERO_TIME_STRING_VALUE = "---"
@@ -78,10 +75,15 @@ def _db_data_to_session(
 
 
 class DB:
-    def __init__(self):
-        self._conn = sqlite3.connect(os.path.join(MY_PATH, DB_FILENAME))
+    def __init__(self, settings: dict[str, Any]):
+        self._conn = sqlite3.connect(Path(__file__).absolute().parent / DB_FILENAME)
         self._cur = self._conn.cursor()
-        self._activities_count: int = None
+
+        self._timer_frame_count = settings.get('timer_frame_count', DEFAULT_TIMER_FRAME_COUNT)
+        self._default_app_state = {
+            f"activity_in_timer{num + 1}": num % len(DEFAULT_ACTIVITIES) + 1
+            for num in range(self._timer_frame_count)
+        }
 
         # создаём таблицу activities
         # сперва проверяем, есть ли такая; если нет - создаём и заполняем стартовыми данными
@@ -105,12 +107,12 @@ class DB:
         if not self._cur.fetchone():
             self._cur.execute(
                 "CREATE TABLE app_state ("
-                + ", ".join(f"{field} INTEGER" for field in DEFAULT_APP_STATE)
+                + ", ".join(f"{field} INTEGER" for field in self._default_app_state)
                 + ")"
             )
             self._cur.execute(
-                "INSERT INTO app_state VALUES (" + ", ".join("?" * len(DEFAULT_APP_STATE)) + ")",
-                list(DEFAULT_APP_STATE.values()),
+                "INSERT INTO app_state VALUES (" + ", ".join("?" * len(self._default_app_state)) + ")",
+                list(self._default_app_state.values()),
             )
 
         # создаём таблицу sessions
@@ -141,6 +143,9 @@ class DB:
         )
 
         self._conn.commit()
+        
+        self._cur.execute("SELECT COUNT(*) FROM activities")
+        self._activities_count = int(self._cur.fetchone()[0])
 
     def __del__(self):
         self._conn.close()
@@ -212,27 +217,27 @@ class DB:
     def get_activity_table(self) -> dict[int, str]:
         self._cur.execute("SELECT id, title FROM activities")
         activities_table = dict(self._cur.fetchall())
-        self._activities_count = len(activities_table)
         return activities_table
 
     def load_all_timers_activity_ids(self) -> list[int]:
         self._cur.execute("SELECT * FROM app_state")
         app_state_table = list(self._cur.fetchall()[0])
-        if len(app_state_table) >= TIMER_FRAME_COUNT:
-            app_state_table = app_state_table[:TIMER_FRAME_COUNT]
-        else:
-            for i in range(len(app_state_table), TIMER_FRAME_COUNT):
-                app_state_table.append(i+1)
-                self._cur.execute(f"ALTER TABLE app_state ADD COLUMN activity_in_timer{i+1} INTEGER")
-            self._cur.execute("UPDATE app_state SET " + ", ".join(
-                [f"activity_in_timer{i+1} = '{app_state_table[i]}'" for i in range(0, TIMER_FRAME_COUNT)]
-            ))
-            self._conn.commit()
+        if len(app_state_table) >= self._timer_frame_count:
+            return app_state_table[:self._timer_frame_count]
+        
+        for i in range(len(app_state_table), self._timer_frame_count):
+            app_state_table.append(i % self._activities_count + 1)
+            self._cur.execute(f"ALTER TABLE app_state ADD COLUMN activity_in_timer{i+1} INTEGER")
+
+        self._cur.execute("UPDATE app_state SET " + ", ".join(
+            [f"activity_in_timer{i+1} = '{value}'" for i, value in enumerate(app_state_table)]
+        ))
+        self._conn.commit()
         return app_state_table
 
     def save_all_timers_activity_ids(self, activity_ids: list[int]) -> None:
         self._cur.execute(
-            "UPDATE app_state SET " + ", ".join(f"{key} = ?" for key in DEFAULT_APP_STATE.keys()),
+            "UPDATE app_state SET " + ", ".join(f"{key} = ?" for key in self._default_app_state.keys()),
             activity_ids,
         )
         self._conn.commit()

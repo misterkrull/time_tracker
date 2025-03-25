@@ -1,10 +1,12 @@
 import keyboard
 import time
 import tkinter as tk
+from typing import Any
 
 from common_functions import duration_to_string, print_performance, time_to_string
 from gui.gui_constants import (
-    MAIN_WINDOW_X, MAIN_WINDOW_Y, MAIN_WINDOW_POSITION_X, MAIN_WINDOW_POSITION_Y,
+    DEFAULT_MAIN_WINDOW_X, DEFAULT_MAIN_WINDOW_Y, DEFAULT_MAIN_WINDOW_POSITION_X, DEFAULT_MAIN_WINDOW_POSITION_Y,
+    DEFAULT_ENABLE_GLOBAL_HOTKEYS,
     SESSION_BUTTON_DICT, SESSION_LABEL_DICT,
     TK_BUTTON_STATES,
 )
@@ -16,12 +18,20 @@ from time_counter import TimeCounter
 
 
 class GuiLayer:
-    def __init__(self, root: tk.Tk, app: ApplicationLogic):
+    def __init__(self, root: tk.Tk, app: ApplicationLogic, settings: dict[str, Any]):
         self.root = root
         self.app = app
 
+        self._main_window_x = settings.get('main_window_x', DEFAULT_MAIN_WINDOW_X)
+        self._main_window_y = settings.get('main_window_y', DEFAULT_MAIN_WINDOW_Y)
+        _main_window_position_x = settings.get('main_window_position_x', DEFAULT_MAIN_WINDOW_POSITION_X)
+        _main_window_position_y = settings.get('main_window_position_y', DEFAULT_MAIN_WINDOW_POSITION_Y)
+        _enable_global_hotkeys = settings.get('enable_global_hotkeys', DEFAULT_ENABLE_GLOBAL_HOTKEYS)
+
         self.root.title("Мой трекер")
-        self.root.geometry(f"{MAIN_WINDOW_X}x{MAIN_WINDOW_Y}+{MAIN_WINDOW_POSITION_X}+{MAIN_WINDOW_POSITION_Y}")
+        self.root.geometry(
+            f"{self._main_window_x}x{self._main_window_y}+{_main_window_position_x}+{_main_window_position_y}"
+        )
         self.root.resizable(False, False)  # Запрещаем изменение размеров
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)  # определяем метод закрытия окна
         self.DEFAULT_WIN_COLOR = self.root.cget("background")
@@ -35,15 +45,15 @@ class GuiLayer:
         self._init_middle_widgets()
         self._init_bottom_widgets()
 
-        # ГОРЯЧИЕ КЛАВИШИ -  имитируем нажатие нарисованных кнопок
-        keyboard.add_hotkey("Alt + F9", self.timer_frame_list[0].gui_start_button.invoke)
-        keyboard.add_hotkey("Alt + F10", self.timer_frame_list[1].gui_start_button.invoke)
-        keyboard.add_hotkey("Alt + F11", self.timer_frame_list[2].gui_start_button.invoke)
-        keyboard.add_hotkey("Alt + F12", self.stop_timers_button.invoke)
-        keyboard.add_hotkey("Alt Gr + F9", self.timer_frame_list[0].gui_start_button.invoke)
-        keyboard.add_hotkey("Alt Gr + F10", self.timer_frame_list[1].gui_start_button.invoke)
-        keyboard.add_hotkey("Alt Gr + F11", self.timer_frame_list[2].gui_start_button.invoke)
-        keyboard.add_hotkey("Alt Gr + F12", self.stop_timers_button.invoke)
+        if _enable_global_hotkeys:
+            keyboard.add_hotkey("Alt + F9", self.timer_frame_list[0].gui_start_button.invoke)
+            keyboard.add_hotkey("Alt + F10", self.timer_frame_list[1].gui_start_button.invoke)
+            keyboard.add_hotkey("Alt + F11", self.timer_frame_list[2].gui_start_button.invoke)
+            keyboard.add_hotkey("Alt + F12", self.stop_timers_button.invoke)
+            keyboard.add_hotkey("Alt Gr + F9", self.timer_frame_list[0].gui_start_button.invoke)
+            keyboard.add_hotkey("Alt Gr + F10", self.timer_frame_list[1].gui_start_button.invoke)
+            keyboard.add_hotkey("Alt Gr + F11", self.timer_frame_list[2].gui_start_button.invoke)
+            keyboard.add_hotkey("Alt Gr + F12", self.stop_timers_button.invoke)
 
     def _init_top_widgets(self):
         """Создает фрейм верхней линии"""
@@ -152,7 +162,7 @@ class GuiLayer:
             width=12,
             state=TK_BUTTON_STATES[self.app.session.is_active()]
         )
-        self.manual_input_button.place(x=MAIN_WINDOW_X - 95, y=200)
+        self.manual_input_button.place(x=self._main_window_x - 95, y=200)
 
     def _reset_timer_frames(self):
         new_duration_table = self.app.get_duration_table()
