@@ -165,7 +165,9 @@ class ManualInputOfSubsession:
 
     def _validate_inputing_symbols_startend(self, event: tk.Event) -> None | str:
         # пропускаем управляющие клавиши -- иначе он их блокирует
-        if event.keysym in ["Left", "Right", "Up", "Down", "Home", "End", "BackSpace", "Delete", "Return", "Tab"]:
+        if event.keysym in [
+            "Left", "Right", "Up", "Down", "Home", "End", "BackSpace", "Delete", "Return", "Tab", "Escape"
+        ]:
             return        
         # блокируем запрещённые символы
         if event.char not in "1234567890:- ":
