@@ -1,20 +1,17 @@
 import time
 import tkinter as tk
 
-# NOTE: you should import messagebox explicitly to make it works
-from tkinter import messagebox
+from tkinter import messagebox  # messagebox не импортируется вместе с tkinter: нужно отдельно прописывать
 from typing import Callable
 
 from common_functions import time_to_string, parse_time
-# from time_tracker import ApplicationLogic
-# нужно будет раскомментить, когда (если) time_tracker перестанет импортировать gui_layer
 
 
 def _get_end_current_session(entered_datetime: str, end_last_subsession: int) -> int:
     try:
         end_current_session: int | None = parse_time(entered_datetime.strip())
     except ValueError:
-        raise ValueError("Вы ввели некорректные дату и время!")
+        raise ValueError("Вы ввели некорректные дату и время!") from None
 
     if end_current_session < end_last_subsession:
         raise ValueError("Завершение сессии должно быть не раньше окончания последней подсессии!")

@@ -1,0 +1,3 @@
+[tool.ruff.lint]
+extend-select = ["B", "Q", "PL"]
+ignore = ["Q000"]  # Q000 - это кавычки

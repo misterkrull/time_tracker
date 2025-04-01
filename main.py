@@ -1,13 +1,15 @@
-import json
 import tkinter as tk
+import yaml
 from pathlib import Path
+from tkinter import messagebox
 
 from application_logic import ApplicationLogic
 from db_manager import DB
+from exceptions import TimeTrackerError
 from gui.gui_layer import GuiLayer
 
 
-SETTINGS_FILENAME = "settings.json"
+SETTINGS_FILENAME = "settings.yaml"
 
 
 def main():
@@ -15,7 +17,7 @@ def main():
     settings_filepath = Path(__file__).absolute().parent / SETTINGS_FILENAME
     if settings_filepath.exists():
         with open(settings_filepath, 'r') as f:
-            settings = json.load(f)
+            settings = yaml.safe_load(f)
 
     db = DB(settings)
     app = ApplicationLogic(db)
@@ -26,4 +28,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except TimeTrackerError as err:
+        messagebox.showerror("Ошибка", str(err))

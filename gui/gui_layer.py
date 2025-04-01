@@ -6,7 +6,7 @@ from typing import Any
 from common_functions import duration_to_string, print_performance, time_to_string
 from gui.gui_constants import (
     DEFAULT_MAIN_WINDOW_X, DEFAULT_MAIN_WINDOW_Y, DEFAULT_MAIN_WINDOW_POSITION_X, DEFAULT_MAIN_WINDOW_POSITION_Y,
-    DEFAULT_ENABLE_GLOBAL_HOTKEYS,
+    DEFAULT_ENABLE_GLOBAL_HOTKEYS, DEFAULT_NEED_NUMBERS_IN_COMBOBOX_NAMES,
     SESSION_BUTTON_DICT, SESSION_LABEL_DICT,
     TK_BUTTON_STATES,
 )
@@ -14,6 +14,7 @@ from gui.manual_input_of_subsession import ManualInputOfSubsession
 from gui.retroactively_termination_of_session import RetroactivelyTerminationOfSession
 from gui.timer_frame import TimerFrame
 from application_logic import ApplicationLogic
+from gui.utils import forming_combobox_names
 from time_counter import TimeCounter
 
 
@@ -22,11 +23,14 @@ class GuiLayer:
         self.root = root
         self.app = app
 
-        self._main_window_x = settings.get('main_window_x', DEFAULT_MAIN_WINDOW_X)
-        self._main_window_y = settings.get('main_window_y', DEFAULT_MAIN_WINDOW_Y)
-        _main_window_position_x = settings.get('main_window_position_x', DEFAULT_MAIN_WINDOW_POSITION_X)
-        _main_window_position_y = settings.get('main_window_position_y', DEFAULT_MAIN_WINDOW_POSITION_Y)
-        _enable_global_hotkeys = settings.get('enable_global_hotkeys', DEFAULT_ENABLE_GLOBAL_HOTKEYS)
+        self._main_window_x: int = settings.get('main_window_x', DEFAULT_MAIN_WINDOW_X)
+        self._main_window_y: int = settings.get('main_window_y', DEFAULT_MAIN_WINDOW_Y)
+        _main_window_position_x: int = settings.get('main_window_position_x', DEFAULT_MAIN_WINDOW_POSITION_X)
+        _main_window_position_y: int = settings.get('main_window_position_y', DEFAULT_MAIN_WINDOW_POSITION_Y)
+        _enable_global_hotkeys: bool = settings.get('enable_global_hotkeys', DEFAULT_ENABLE_GLOBAL_HOTKEYS)
+        self._need_numbers_in_combobox_names: bool = settings.get(
+            'need_numbers_in_combobox_names', DEFAULT_NEED_NUMBERS_IN_COMBOBOX_NAMES
+        )
 
         self.root.title("Мой трекер")
         self.root.geometry(
@@ -131,11 +135,12 @@ class GuiLayer:
                 TimerFrame(
                     timer_id,
                     activity_id,
-                    self.app.activity_table,
+                    self.app.activities_table,
                     duration_table,
                     main_frame,
                     self.on_start_timer_button,
-                    self.app.session.is_active()
+                    self.app.session.is_active(),
+                    self._need_numbers_in_combobox_names
                 )
             )
 
@@ -209,12 +214,11 @@ class GuiLayer:
         )
 
     def _manual_input_of_subsession(self):
-        # вот тут конечно костыль, вызванный перреставлением этого словаря в другое место
-        # TODO придумать, куда деть этот словарь
-        _timer_activity_names: dict[int, str] = {
-            k: f"{k}. {v}" for (k, v) in self.app.activity_table.items()
-        }
-        ManualInputOfSubsession(self.root, _timer_activity_names, self._add_subsession_manually)
+        ManualInputOfSubsession(
+            self.root,
+            forming_combobox_names(self.app.activities_table, self._need_numbers_in_combobox_names), 
+            self._add_subsession_manually
+        )
 
     def _add_subsession_manually(self, start_time: int, end_time: int, activity_id: int) -> None:
         self.app.add_subsession_manually(start_time, end_time, activity_id)
@@ -267,5 +271,6 @@ class GuiLayer:
         self._reset_timer_frames()
 
     def on_time_counter_tick(self, current_duration: int):
+        assert self._current_activity_id
         for timer in self.timer_frame_list:
             timer.update_time(current_duration, self._current_activity_id)
