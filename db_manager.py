@@ -69,7 +69,7 @@ class DB:
         self._conn = sqlite3.connect(Path(__file__).absolute().parent / DB_FILENAME)
         self._cur = self._conn.cursor()
 
-        self._timer_frame_count = settings.get('timer_frame_count', DEFAULT_TIMER_FRAME_COUNT)
+        self._timer_frame_count: int = settings.get('timer_frame_count', DEFAULT_TIMER_FRAME_COUNT)
         self._default_app_state = {
             f"activity_in_timer{num + 1}": num % len(DEFAULT_ACTIVITIES) + 1
             for num in range(self._timer_frame_count)

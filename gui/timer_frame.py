@@ -22,6 +22,7 @@ class TimerFrame:
         main_frame: tk.Frame,
         on_start_button: Callable[[int], None],
         is_session_active: bool,
+        need_numbers_in_combobox_names: bool
     ):
         self.id = id
         self.activity_id = activity_id
@@ -34,7 +35,7 @@ class TimerFrame:
         self._current_activity_id: int | None = None
         self._is_master = False
 
-        self._combobox_names = forming_combobox_names(self._activities_table)
+        self._combobox_names = forming_combobox_names(self._activities_table, need_numbers_in_combobox_names)
 
         self._init_widgets(main_frame)
 
