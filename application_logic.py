@@ -1,3 +1,4 @@
+from activities import ActivitiesTable
 from session import Session, Subsession
 from db_manager import DB
 
@@ -6,19 +7,15 @@ class ApplicationLogic:
     def __init__(self, db: DB):
         self.db = db
         
-        self.activity_table: dict[int, str] = self.db.get_activity_table()
+        self.activities_table: ActivitiesTable = self.db.activities_table
         self.session: Session | None = self.db.get_last_session()
         if self.session is None:  # случай, если у нас ещё не было ни одной сессии (т.е. новая БД)
             self.session = Session()
-        else:
-            if len(self.session.subsessions) > 0:
-                self.session.current_subsession = len(self.session.subsessions) - 1
+        elif len(self.session.subsessions) > 0:
+            self.session.current_subsession = len(self.session.subsessions) - 1
 
-    def get_duration_table(self):
-        return {
-            act_id: self.session.get_activity_duration(act_id)
-            for act_id in self.activity_table.keys()
-        }
+    def get_duration_table(self) -> dict[int, int]:
+        return self.activities_table.get_duration_table(self.session)
 
     def start_session(self, start_time) -> None:
         self.session = Session(start_time=start_time)
@@ -42,4 +39,3 @@ class ApplicationLogic:
         self.session.subsessions.append(subsession)
         subsession_number = len(self.session.subsessions) - 1  # индекс свежедобавленного элемента
         self.db.add_subsession(self.session, subsession_number)
-

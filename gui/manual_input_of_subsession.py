@@ -13,9 +13,9 @@ class CheckStatus(enum.Enum):
 
 
 class ManualInputOfSubsession:
-    def __init__(self, tk_root: tk.Tk, activities_names: dict[int, str], add_subsession: Callable):
-        self._tk_root = tk_root  # пока временно ставлю, мб потом уберу
-        self._activities_names = activities_names
+    def __init__(self, tk_root: tk.Tk, combobox_names: dict[int, str], add_subsession: Callable):
+        self._tk_root = tk_root
+        self._combobox_names = combobox_names
         self._add_subsession = add_subsession
 
         self._start = int(time.time())
@@ -73,11 +73,11 @@ class ManualInputOfSubsession:
 
         self._activity_combobox = ttk.Combobox(
             self._dialog_window,
-            font=("Segoe UI", 10),
-            values=list(self._activities_names.values()),
+            # font=("Segoe UI", 10),  # убрал, т.к. оригинальный шрифт меньше => больше символов влезает в комбобокс
+            values=list(self._combobox_names.values()),
             state="readonly",
         )
-        self._activity_combobox.place(x=180, y=12, width=170)
+        self._activity_combobox.place(x=180, y=12, width=200)
         self._activity_combobox.bind("<<ComboboxSelected>>", self._set_okbutton_state)
 
         # Начало подсессии
@@ -93,7 +93,7 @@ class ManualInputOfSubsession:
             self._dialog_window,
             font=("Segoe UI", 11)
         )
-        self._start_input.place(x=180, y=42, width=170)
+        self._start_input.place(x=180, y=42, width=200)
         self._start_input.focus_set()
         self._start_input.bind("<Key>", self._validate_inputing_symbols_startend)
         self._start_input.bind("<FocusOut>", self._check_start)
@@ -356,7 +356,7 @@ class ManualInputOfSubsession:
             "Создание новой подсессии",
             (
                 "Будет создана следующая подсессия:\n"
-               f" - активность:     {self._activities_names[self._activity_combobox.current() + 1]}\n"
+               f" - активность:     {list(self._combobox_names.values())[self._activity_combobox.current()]}\n"
                f" - начало:            {self._start_text}\n"
                f" - длительность: {self._duration_text}\n"
                f" - окончание:     {self._end_text}\n"
@@ -364,7 +364,7 @@ class ManualInputOfSubsession:
                 "Создаём?"
             )
         ):
-            activity_id = list(self._activities_names.keys())[self._activity_combobox.current()]
+            activity_id = list(self._combobox_names.keys())[self._activity_combobox.current()]
             self._add_subsession(self._start, self._end, activity_id)
 
     def _exit(self, _: tk.Event | None = None) -> None:

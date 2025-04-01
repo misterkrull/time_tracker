@@ -35,6 +35,3 @@ class Session:
         if self.id is None:
             return False
         return self.start_time == self.end_time
-
-    def get_activity_duration(self, activity_id: int) -> int:
-        return sum(subs.duration for subs in self.subsessions if subs.activity_id == activity_id)

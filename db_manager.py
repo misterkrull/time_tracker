@@ -2,6 +2,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from activities import ActivitiesTable
 from common_functions import duration_to_string, parse_time, time_to_string
 from gui.gui_constants import DEFAULT_TIMER_FRAME_COUNT
 from session import Session, Subsession
@@ -31,22 +32,11 @@ def _db_data_to_subsession(activity_id: int, start_time_str: str, end_time_str: 
     )
 
 
-def _get_activity_durations(session: Session, activities_count: int) -> list[int]:
-    durations_by_activity = [0] * activities_count
-    for subs in session.subsessions:
-        # TODO: Здесь потенциальный баг, потому что id в базе
-        # не обязаны идти по порядку и совпадать с порядковым индексом списка -1,
-        # по правильному надо использовать все id из базы и отсортировать их,
-        # а еще более правильно вообще не сохранять лишнюю инфу в базе
-        durations_by_activity[subs.activity_id - 1] += subs.duration
-    return durations_by_activity
-
-
 def _get_activity_duration_total(session: Session) -> int:
     return sum(map(lambda sub: sub.duration, session.subsessions))
 
 
-def _session_to_db_data(session: Session, activities_count: int) -> tuple:
+def _session_to_db_data(session: Session, activities_table: ActivitiesTable) -> tuple:
     return (
         time_to_string(session.start_time),
         time_to_string(session.end_time),
@@ -54,7 +44,7 @@ def _session_to_db_data(session: Session, activities_count: int) -> tuple:
         duration_to_string(session.duration),
         len(session.subsessions),
         duration_to_string(_get_activity_duration_total(session)),
-        *[duration_to_string(act_duration) for act_duration in _get_activity_durations(session, activities_count)],
+        *[duration_to_string(act_duration) for act_duration in activities_table.get_duration_table(session).values()],
     )
 
 
@@ -93,12 +83,16 @@ class DB:
         if not self._cur.fetchone():
             self._cur.execute(
                 "CREATE TABLE activities ("
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-                "title TEXT, "
-                "parent_activity INTEGER"
-                ")"
+                + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                + "title TEXT, "
+                + "parent_id INTEGER, "
+                + "need_show INTEGER, "
+                + "order_number REAL"
+                + ")"
             )
-            values = ", ".join(f"(NULL, '{activity}', 0)" for activity in DEFAULT_ACTIVITIES)
+            values = ", ".join(
+                f"(NULL, '{activity}', 0, 1, {float(id) + 1})" for id, activity in enumerate(DEFAULT_ACTIVITIES)
+            )
             self._cur.execute(f"INSERT INTO activities VALUES {values}")
 
         # создаём таблицу app_state
@@ -144,8 +138,8 @@ class DB:
 
         self._conn.commit()
         
-        self._cur.execute("SELECT COUNT(*) FROM activities")
-        self._activities_count = int(self._cur.fetchone()[0])
+        self._cur.execute("SELECT id, title, parent_id, need_show, order_number FROM activities")
+        self.activities_table = ActivitiesTable(self._cur.fetchall())
 
     def __del__(self):
         self._conn.close()
@@ -181,9 +175,23 @@ class DB:
     def add_session(self, session: Session) -> int:
         """Вставляет сессию в базу (без подсессий) и возвращает id записи."""
 
-        activities_placeholder = ", ?" * self._activities_count
-        sql_query = f"INSERT INTO sessions VALUES (NULL, ?, ?, ?, ?, ?{activities_placeholder})"
-        self._cur.execute(sql_query, _session_to_db_data(session, self._activities_count))
+        sess_duration_total_act_ids = ", ".join(
+            f"sess_duration_total_act{id}" for id in self.activities_table.get_all_ids()
+        )
+        self._cur.execute(
+            "INSERT INTO sessions ("
+                "start_sess_datetime, "
+                "end_sess_datetime, "
+                # Все что ниже это ненужная избыточность,
+                # добавляется лишь для удобного просмотра базы и никак не используется.
+                "sess_duration_total, "
+                "amount_of_subsessions, "
+                "sess_duration_total_acts_all, "
+                f"{sess_duration_total_act_ids}"
+            f") VALUES (?, ?, ?, ?, ?, {', '.join(['?'] * self.activities_table.count)})",
+            _session_to_db_data(session, self.activities_table),
+        )
+
         res = self._cur.lastrowid
         self._conn.commit()
         return res
@@ -193,41 +201,44 @@ class DB:
         session: Session,
         need_commit: bool = True,
     ) -> None:
-        activities_placeholder = ",".join(
-            f"sess_duration_total_act{index + 1} = ?" for index in range(self._activities_count)
+        activities_placeholder = ", ".join(
+            f"sess_duration_total_act{id} = ?" for id in self.activities_table.get_all_ids()
         )
 
         self._cur.execute(
             "UPDATE sessions SET "
-            "start_sess_datetime = ?,"
-            "end_sess_datetime = ?,"
+            "start_sess_datetime = ?, "
+            "end_sess_datetime = ?, "
             # Все что ниже это ненужная избыточность,
             # добавляется лишь для удобного просмотра базы и никак не используется.
-            "sess_duration_total = ?,"
-            "amount_of_subsessions = ?,"
-            "sess_duration_total_acts_all = ?,"
+            "sess_duration_total = ?, "
+            "amount_of_subsessions = ?, "
+            "sess_duration_total_acts_all = ?, "
             f"{activities_placeholder}"
             "WHERE id = ?",
-            (*_session_to_db_data(session, self._activities_count), session.id),
+            (*_session_to_db_data(session, self.activities_table), session.id),
         )
 
         if need_commit:
             self._conn.commit()
 
-    def get_activity_table(self) -> dict[int, str]:
-        self._cur.execute("SELECT id, title FROM activities")
-        activities_table = dict(self._cur.fetchall())
-        return activities_table
-
     def load_all_timers_activity_ids(self) -> list[int]:
         self._cur.execute("SELECT * FROM app_state")
         app_state_table = list(self._cur.fetchall()[0])
+
+        some_showing_top_level_activity_id = self.activities_table.get_ordered_showing_child_ids(0)[0]
+        for timer_id, activity_id in enumerate(app_state_table):
+            for id in self.activities_table.get_lineage_ids(activity_id):
+                if not self.activities_table._table[id].need_show:
+                    app_state_table[timer_id] = some_showing_top_level_activity_id
+                    break
+
         if len(app_state_table) >= self._timer_frame_count:
             return app_state_table[:self._timer_frame_count]
         
-        for i in range(len(app_state_table), self._timer_frame_count):
-            app_state_table.append(i % self._activities_count + 1)
-            self._cur.execute(f"ALTER TABLE app_state ADD COLUMN activity_in_timer{i+1} INTEGER")
+        for timer_id in range(len(app_state_table), self._timer_frame_count):
+            app_state_table.append(timer_id % self.activities_table.count + 1)
+            self._cur.execute(f"ALTER TABLE app_state ADD COLUMN activity_in_timer{timer_id+1} INTEGER")
 
         self._cur.execute("UPDATE app_state SET " + ", ".join(
             [f"activity_in_timer{i+1} = '{value}'" for i, value in enumerate(app_state_table)]

@@ -8,6 +8,9 @@ DEFAULT_MAIN_WINDOW_POSITION_Y = -768
 DEFAULT_ENABLE_GLOBAL_HOTKEYS = True
 
 
+NEED_NUMBERS_IN_COMBOBOX_NAMES = True
+
+
 BACKGROUND_COLOR = "SystemButtonFace"  # дефолтный виндовый цвет окон, типа серый такой
 
 TK_BUTTON_STATES = {True: "normal", False: "disabled"}

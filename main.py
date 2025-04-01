@@ -1,9 +1,11 @@
 import json
 import tkinter as tk
 from pathlib import Path
+from tkinter import messagebox
 
 from application_logic import ApplicationLogic
 from db_manager import DB
+from exceptions import TimeTrackerError
 from gui.gui_layer import GuiLayer
 
 
@@ -26,4 +28,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except TimeTrackerError as err:
+        messagebox.showerror("Ошибка", str(err))
+        
