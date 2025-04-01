@@ -1,15 +1,9 @@
-import enum
 import time
 import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import Callable
 
 from common_functions import parse_time, duration_to_string, parse_duration, time_to_string
-
-class CheckStatus(enum.Enum):
-    failed = 0
-    unchanged = 1
-    changed = 2
 
 
 class ManualInputOfSubsession:
