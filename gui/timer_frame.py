@@ -1,10 +1,11 @@
 import tkinter as tk
 from tkinter import ttk
-from typing import Callable
+from typing import Any, Callable
 
 from activities import ActivitiesTable
 from common_functions import duration_to_string
 from gui.gui_constants import (
+    DEFAULT_COMBOBOX_HEIGHT,
     TK_BUTTON_STATES,
     TK_COMBOBOX_STATE,
     TK_IS_GREEN_COLORED,
@@ -22,7 +23,7 @@ class TimerFrame:
         main_frame: tk.Frame,
         on_start_button: Callable[[int], None],
         is_session_active: bool,
-        need_numbers_in_combobox_names: bool
+        settings: dict[str, Any]
     ):
         self.id = id
         self.activity_id = activity_id
@@ -35,7 +36,9 @@ class TimerFrame:
         self._current_activity_id: int | None = None
         self._is_master = False
 
-        self._combobox_names = forming_combobox_names(self._activities_table, need_numbers_in_combobox_names)
+        self._combobox_height: int = settings.get('combobox_height', DEFAULT_COMBOBOX_HEIGHT)
+
+        self._combobox_names = forming_combobox_names(self._activities_table, settings)
 
         self._init_widgets(main_frame)
 
@@ -61,6 +64,7 @@ class TimerFrame:
             values=list(self._combobox_names.values()),
             state="readonly",
             width=30,
+            height=self._combobox_height
         )
         self._gui_combobox.pack(pady=5)
         self._gui_combobox.bind("<<ComboboxSelected>>", self._select_activity)

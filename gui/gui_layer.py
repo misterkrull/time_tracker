@@ -6,7 +6,7 @@ from typing import Any
 from common_functions import duration_to_string, print_performance, time_to_string
 from gui.gui_constants import (
     DEFAULT_MAIN_WINDOW_X, DEFAULT_MAIN_WINDOW_Y, DEFAULT_MAIN_WINDOW_POSITION_X, DEFAULT_MAIN_WINDOW_POSITION_Y,
-    DEFAULT_ENABLE_GLOBAL_HOTKEYS, DEFAULT_NEED_NUMBERS_IN_COMBOBOX_NAMES,
+    DEFAULT_ENABLE_GLOBAL_HOTKEYS, DEFAULT_COMBOBOX_HEIGHT, 
     SESSION_BUTTON_DICT, SESSION_LABEL_DICT,
     TK_BUTTON_STATES,
 )
@@ -23,14 +23,12 @@ class GuiLayer:
         self.root = root
         self.app = app
 
+        self._settings = settings
         self._main_window_x: int = settings.get('main_window_x', DEFAULT_MAIN_WINDOW_X)
         self._main_window_y: int = settings.get('main_window_y', DEFAULT_MAIN_WINDOW_Y)
         _main_window_position_x: int = settings.get('main_window_position_x', DEFAULT_MAIN_WINDOW_POSITION_X)
         _main_window_position_y: int = settings.get('main_window_position_y', DEFAULT_MAIN_WINDOW_POSITION_Y)
         _enable_global_hotkeys: bool = settings.get('enable_global_hotkeys', DEFAULT_ENABLE_GLOBAL_HOTKEYS)
-        self._need_numbers_in_combobox_names: bool = settings.get(
-            'need_numbers_in_combobox_names', DEFAULT_NEED_NUMBERS_IN_COMBOBOX_NAMES
-        )
 
         self.root.title("Мой трекер")
         self.root.geometry(
@@ -140,7 +138,7 @@ class GuiLayer:
                     main_frame,
                     self.on_start_timer_button,
                     self.app.session.is_active(),
-                    self._need_numbers_in_combobox_names
+                    self._settings
                 )
             )
 
@@ -214,9 +212,11 @@ class GuiLayer:
         )
 
     def _manual_input_of_subsession(self):
+        _combobox_height: int = self._settings.get('combobox_height', DEFAULT_COMBOBOX_HEIGHT)
         ManualInputOfSubsession(
             self.root,
-            forming_combobox_names(self.app.activities_table, self._need_numbers_in_combobox_names), 
+            forming_combobox_names(self.app.activities_table, self._settings), 
+            _combobox_height,
             self._add_subsession_manually
         )
 

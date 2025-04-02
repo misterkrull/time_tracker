@@ -7,8 +7,7 @@ from common_functions import duration_to_string, parse_time, time_to_string
 from gui.gui_constants import DEFAULT_TIMER_FRAME_COUNT
 from session import Session, Subsession
 
-
-DB_FILENAME = "time_tracker.db"
+DEFAULT_DB_FILENAME = "time_tracker.db"
 DEFAULT_ACTIVITIES = ["IT", "Английский", "Уборка", "Йога", "Помощь маме"]
 
 # Значение "---" использовалось в старой версии базы для обозначения конца не завершенной сессии
@@ -66,10 +65,12 @@ def _db_data_to_session(
 
 class DB:
     def __init__(self, settings: dict[str, Any]):
-        self._conn = sqlite3.connect(Path(__file__).absolute().parent / DB_FILENAME)
+        db_filename: str = settings.get('db_filename', DEFAULT_DB_FILENAME)
+        self._timer_frame_count: int = settings.get('timer_frame_count', DEFAULT_TIMER_FRAME_COUNT)
+
+        self._conn = sqlite3.connect(Path(__file__).absolute().parent / db_filename)
         self._cur = self._conn.cursor()
 
-        self._timer_frame_count: int = settings.get('timer_frame_count', DEFAULT_TIMER_FRAME_COUNT)
         self._default_app_state = {
             f"activity_in_timer{num + 1}": num % len(DEFAULT_ACTIVITIES) + 1
             for num in range(self._timer_frame_count)

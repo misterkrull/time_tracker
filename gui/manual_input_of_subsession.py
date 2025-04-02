@@ -7,9 +7,10 @@ from common_functions import parse_time, duration_to_string, parse_duration, tim
 
 
 class ManualInputOfSubsession:
-    def __init__(self, tk_root: tk.Tk, combobox_names: dict[int, str], add_subsession: Callable):
+    def __init__(self, tk_root: tk.Tk, combobox_names: dict[int, str], combobox_height: int, add_subsession: Callable):
         self._tk_root = tk_root
         self._combobox_names = combobox_names
+        self._combobox_height = combobox_height
         self._add_subsession = add_subsession
 
         self._start = int(time.time())
@@ -70,6 +71,7 @@ class ManualInputOfSubsession:
             # font=("Segoe UI", 10),  # убрал, т.к. оригинальный шрифт меньше => больше символов влезает в комбобокс
             values=list(self._combobox_names.values()),
             state="readonly",
+            height=self._combobox_height
         )
         self._activity_combobox.place(x=180, y=12, width=200)
         self._activity_combobox.bind("<<ComboboxSelected>>", self._set_okbutton_state)
