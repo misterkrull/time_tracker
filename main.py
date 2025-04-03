@@ -6,10 +6,8 @@ from tkinter import messagebox
 from application_logic import ApplicationLogic
 from db_manager import DB
 from exceptions import TimeTrackerError
+from filenames import SETTINGS_FILENAME
 from gui.gui_layer import GuiLayer
-
-
-SETTINGS_FILENAME = "settings.yaml"
 
 
 def main():

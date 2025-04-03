@@ -4,10 +4,10 @@ from typing import Any
 
 from activities import ActivitiesTable
 from common_functions import duration_to_string, parse_time, time_to_string
+from filenames import DEFAULT_DB_FILENAME
 from gui.gui_constants import DEFAULT_TIMER_FRAME_COUNT
 from session import Session, Subsession
 
-DEFAULT_DB_FILENAME = "time_tracker.db"
 DEFAULT_ACTIVITIES = ["IT", "Английский", "Уборка", "Йога", "Помощь маме"]
 
 # Значение "---" использовалось в старой версии базы для обозначения конца не завершенной сессии

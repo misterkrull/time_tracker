@@ -3,11 +3,7 @@ import sqlite3
 import yaml
 
 from common_functions import print_performance
-
-
-DEFAULT_DB_FILENAME = "time_tracker.db"
-SETTINGS_FILENAME = "settings.yaml"
-
+from filenames import DEFAULT_DB_FILENAME, SETTINGS_FILENAME
 
 @print_performance
 def _adding_activities(new_activities_count: int):
