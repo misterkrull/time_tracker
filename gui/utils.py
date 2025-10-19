@@ -15,17 +15,17 @@ def forming_combobox_names(
     )
 
     combobox_names: dict[int, str] = {}
-    def add_children_to_combobox_names(id: int, pref: str):
+    def add_children_to_combobox_names(id: int, prefix: str):
         for num, child_id in enumerate(activities_table.get_ordered_showing_child_ids(id)):
             # кажется, будто можно убрать дублирование, но тут не всё так просто; проще выглядит с дублированием
             if need_numbers_in_combobox_names:
-                combobox_names[child_id] = f"{pref}{num + 1}. {activities_table._table[child_id].name}"
+                combobox_names[child_id] = f"{prefix}{num + 1}. {activities_table._table[child_id].name}"
                 combobox_names[child_id] += f" ({child_id})" if need_id_in_combobox_names else ""
-                add_children_to_combobox_names(child_id, f"{pref}{num + 1}.")
+                add_children_to_combobox_names(child_id, f"{prefix}{num + 1}.")
             else:
-                combobox_names[child_id] = f"{pref}{activities_table._table[child_id].name}"
+                combobox_names[child_id] = f"{prefix}{activities_table._table[child_id].name}"
                 combobox_names[child_id] += f" ({child_id})" if need_id_in_combobox_names else ""
-                add_children_to_combobox_names(child_id, f"{pref}  ")
+                add_children_to_combobox_names(child_id, f"{prefix}  ")
 
     add_children_to_combobox_names(0, "")
     return combobox_names

@@ -99,7 +99,7 @@ class TimerFrame:
         self._duration_table = new_duration_table
         self._update_widgets_state()
 
-    def _update_widgets_state(self):
+    def _update_widgets_state(self) -> int:
         self._gui_label.config(bg=TK_IS_GREEN_COLORED[self._is_master])
         self._gui_combobox.config(state=TK_COMBOBOX_STATE[not self._is_master])
 
@@ -109,10 +109,13 @@ class TimerFrame:
             and self.activity_id in self._activities_table.get_lineage_ids(self._current_activity_id)
             else 0
         )
-        self._gui_label.config(text=duration_to_string(self._duration_table[self.activity_id] + addition))
 
-    def update_time(self, time_counter_duration: int, current_activity_id: int) -> None:
+        time = self._duration_table[self.activity_id] + addition
+        self._gui_label.config(text=duration_to_string(time))
+        return time
+
+    def update_time(self, time_counter_duration: int, current_activity_id: int) -> None | int:
         self._time_counter_duration = time_counter_duration
         self._current_activity_id = current_activity_id
         if self.activity_id in self._activities_table.get_lineage_ids(current_activity_id):
-            self._update_widgets_state()
+            return self._update_widgets_state()

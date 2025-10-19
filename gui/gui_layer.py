@@ -3,7 +3,7 @@ import time
 import tkinter as tk
 from typing import Any
 
-from common_functions import duration_to_string, print_performance, time_to_string
+from common_functions import duration_to_string, time_to_string
 from gui.gui_constants import (
     DEFAULT_MAIN_WINDOW_X, DEFAULT_MAIN_WINDOW_Y, DEFAULT_MAIN_WINDOW_POSITION_X, DEFAULT_MAIN_WINDOW_POSITION_Y,
     DEFAULT_ENABLE_GLOBAL_HOTKEYS, DEFAULT_COMBOBOX_HEIGHT, 
@@ -273,4 +273,6 @@ class GuiLayer:
     def on_time_counter_tick(self, current_duration: int):
         assert self._current_activity_id
         for timer in self.timer_frame_list:
-            timer.update_time(current_duration, self._current_activity_id)
+            time = timer.update_time(current_duration, self._current_activity_id)
+            if timer._is_master:
+                self.root.title(duration_to_string(time))
