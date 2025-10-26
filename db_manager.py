@@ -31,18 +31,14 @@ def _db_data_to_subsession(activity_id: int, start_time_str: str, end_time_str: 
     )
 
 
-def _get_activity_duration_total(session: Session) -> int:
-    return sum(map(lambda sub: sub.duration, session.subsessions))
-
-
 def _session_to_db_data(session: Session, activities_table: ActivitiesTable) -> tuple:
     return (
         time_to_string(session.start_time),
         time_to_string(session.end_time),
         # Все что ниже это лишняя инфа, добавляется только для удобного просмотра
         duration_to_string(session.duration),
-        len(session.subsessions),
-        duration_to_string(_get_activity_duration_total(session)),
+        session.number_of_subsessions,
+        duration_to_string(session.duration_of_all_subsessions),
         *[duration_to_string(act_duration) for act_duration in activities_table.get_duration_table(session).values()],
     )
 

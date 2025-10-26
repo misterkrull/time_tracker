@@ -31,6 +31,14 @@ class Session:
     def duration(self) -> int:
         return self.end_time - self.start_time
 
+    @property
+    def duration_of_all_subsessions(self) -> int:
+        return sum(map(lambda sub: sub.duration, self.subsessions))
+
+    @property
+    def number_of_subsessions(self) -> int:
+        return len(self.subsessions)
+
     def is_active(self) -> bool:
         if self.id is None:
             return False
