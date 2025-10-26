@@ -141,6 +141,22 @@ class DB:
     def __del__(self):
         self._conn.close()
 
+    def add_activity(self, title: str, parent_id: int, need_show: bool, order_number: float) -> None:
+        self._cur.execute(
+            "INSERT INTO activities (title, parent_id, need_show, order_number)"
+            "VALUES (?, ?, ?, ?)",
+            (title, parent_id, need_show, order_number)
+        )
+        last_id = self._cur.lastrowid
+        new_column_name = f"sess_duration_total_act{last_id}"
+        self._cur.execute(
+            f"ALTER TABLE sessions ADD COLUMN {new_column_name}"
+        )
+        self._cur.execute(
+            f"UPDATE sessions SET {new_column_name} = '00:00:00'"
+        )
+        self._conn.commit()
+
     def add_subsession(self, session: Session, subsession_number: int) -> None:
         self._cur.execute(
             "INSERT INTO subsessions VALUES (NULL, ?, ?, ?, ?, ?)",
@@ -153,9 +169,18 @@ class DB:
         """
         Возвращает последнюю сессию, если таблица sessions не пуста.
         Либо возвращает None, если таблица sessions пуста.
+        """        
+        return self.get_session_by_id(self.get_last_session_id())
+        
+    def get_session_by_id(self, session_id: int) -> Session | None:
+        """
+        Возращает сессию с указанным id.
+        Либо возвращает None, если указанный id не найден в таблице sessions.
         """
         self._cur.execute(
-            "SELECT id, start_sess_datetime, end_sess_datetime FROM sessions ORDER BY id DESC LIMIT 1"
+            "SELECT id, start_sess_datetime, end_sess_datetime FROM sessions "
+            "WHERE id = ?",
+            (session_id,)
         )
         session_db_data = self._cur.fetchone()
         if session_db_data is None:
@@ -163,11 +188,19 @@ class DB:
         self._cur.execute(
             "SELECT activity, start_subs_datetime, end_subs_datetime FROM subsessions "
             "WHERE session_number = ?",
-            (session_db_data[0],),
+            (session_id,),
         )
         subsession_list_db_data = self._cur.fetchall()
         session = _db_data_to_session(*session_db_data, subsession_list_db_data)
         return session
+
+    def get_last_session_id(self) -> int | None:
+        """
+        Возвращает ID последней сессии, если таблица sessions не пуста.
+        Либо возвращает None, если таблица sessions пуста.
+        """  
+        self._cur.execute("SELECT MAX(id) FROM sessions")
+        return self._cur.fetchone()[0]
 
     def add_session(self, session: Session) -> int:
         """Вставляет сессию в базу (без подсессий) и возвращает id записи."""
@@ -221,7 +254,7 @@ class DB:
 
     def load_all_timers_activity_ids(self) -> list[int]:
         self._cur.execute("SELECT * FROM app_state")
-        app_state_table = list(self._cur.fetchall()[0])
+        app_state_table = list(self._cur.fetchone())
 
         some_showing_top_level_activity_id = self.activities_table.get_ordered_showing_child_ids(0)[0]
         for timer_id, activity_id in enumerate(app_state_table):
