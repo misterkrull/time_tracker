@@ -1,21 +1,15 @@
 import tkinter as tk
-import yaml
-from pathlib import Path
 from tkinter import messagebox
 
 from application_logic import ApplicationLogic
 from db_manager import DB
 from exceptions import TimeTrackerError
-from filenames import SETTINGS_FILENAME
 from gui.gui_layer import GuiLayer
+from settings_loader import load_settings
 
 
 def main():
-    settings = {}
-    settings_filepath = Path(__file__).absolute().parent / SETTINGS_FILENAME
-    if settings_filepath.exists():
-        with open(settings_filepath, 'r') as f:
-            settings = yaml.safe_load(f)
+    settings = load_settings()  # путь в файлу настроек лежит в filenames.py
 
     db = DB(settings)
     app = ApplicationLogic(db)

@@ -3,18 +3,15 @@ import time
 import tkinter as tk
 from typing import Any
 
-from common_functions import duration_to_string, print_performance, time_to_string
+from application_logic import ApplicationLogic
+from common_functions import duration_to_string, forming_activities_for_combobox, print_performance, time_to_string
 from gui.gui_constants import (
-    DEFAULT_MAIN_WINDOW_X, DEFAULT_MAIN_WINDOW_Y, DEFAULT_MAIN_WINDOW_POSITION_X, DEFAULT_MAIN_WINDOW_POSITION_Y,
-    DEFAULT_ENABLE_GLOBAL_HOTKEYS, DEFAULT_COMBOBOX_HEIGHT, 
     SESSION_BUTTON_DICT, SESSION_LABEL_DICT,
     TK_BUTTON_STATES,
 )
 from gui.manual_input_of_subsession import ManualInputOfSubsession
 from gui.retroactively_termination_of_session import RetroactivelyTerminationOfSession
 from gui.timer_frame import TimerFrame
-from application_logic import ApplicationLogic
-from gui.utils import forming_combobox_names
 from time_counter import TimeCounter
 
 
@@ -24,11 +21,10 @@ class GuiLayer:
         self.app = app
 
         self._settings = settings
-        self._main_window_x: int = settings.get('main_window_x', DEFAULT_MAIN_WINDOW_X)
-        self._main_window_y: int = settings.get('main_window_y', DEFAULT_MAIN_WINDOW_Y)
-        _main_window_position_x: int = settings.get('main_window_position_x', DEFAULT_MAIN_WINDOW_POSITION_X)
-        _main_window_position_y: int = settings.get('main_window_position_y', DEFAULT_MAIN_WINDOW_POSITION_Y)
-        _enable_global_hotkeys: bool = settings.get('enable_global_hotkeys', DEFAULT_ENABLE_GLOBAL_HOTKEYS)
+        self._main_window_x: int = settings["main_window_x"]
+        self._main_window_y: int = settings["main_window_y"]
+        _main_window_position_x: int = settings["main_window_position_x"]
+        _main_window_position_y: int = settings["main_window_position_y"]
 
         self.root.title("Мой трекер")
         self.root.geometry(
@@ -47,7 +43,7 @@ class GuiLayer:
         self._init_middle_widgets()
         self._init_bottom_widgets()
 
-        if _enable_global_hotkeys:
+        if settings["enable_global_hotkeys"]:
             keyboard.add_hotkey("Alt + F9", self.timer_frame_list[0].gui_start_button.invoke)
             keyboard.add_hotkey("Alt + F10", self.timer_frame_list[1].gui_start_button.invoke)
             keyboard.add_hotkey("Alt + F11", self.timer_frame_list[2].gui_start_button.invoke)
@@ -212,11 +208,10 @@ class GuiLayer:
         )
 
     def _manual_input_of_subsession(self):
-        _combobox_height: int = self._settings.get('combobox_height', DEFAULT_COMBOBOX_HEIGHT)
         ManualInputOfSubsession(
             self.root,
-            forming_combobox_names(self.app.activities_table, self._settings), 
-            _combobox_height,
+            forming_activities_for_combobox(self.app.activities_table, self._settings), 
+            self._settings["combobox_height"],
             self._add_subsession_manually
         )
 
