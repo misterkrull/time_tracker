@@ -37,7 +37,7 @@ def _session_to_db_data(session: Session, activities_table: ActivitiesTable) -> 
         # Все что ниже это лишняя инфа, добавляется только для удобного просмотра
         duration_to_string(session.duration),
         session.number_of_subsessions,
-        duration_to_string(session.duration_of_all_subsessions),
+        # duration_to_string(session.duration_of_all_subsessions),
         *[duration_to_string(act_duration) for act_duration in activities_table.get_duration_table(session).values()],
     )
 

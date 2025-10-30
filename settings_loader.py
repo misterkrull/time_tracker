@@ -1,4 +1,4 @@
-import yaml
+﻿import yaml
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +19,8 @@ DEFAULT_SETTINGS = {
 
     "need_activity_numbers_in_combobox": False,
     "need_activity_ids_in_combobox": True,
+    "need_root_activity_in_combobox": True,
+
     "need_activity_numbers_in_tt_stat": False,
     "need_activity_ids_in_tt_stat": True,
     "need_others_in_tt_stat": True,

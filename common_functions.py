@@ -1,4 +1,4 @@
-import time
+﻿import time
 from datetime import datetime
 from typing import Any
 
@@ -47,15 +47,19 @@ def forming_activities_for_combobox(activities_table: ActivitiesTable, settings:
     Порядок элементов определяется очерёдостью добавления, поэтому см. на порядок в .keys()
     
     """
-    return _forming_activities_hierarhically(
-        activities_table,
-        settings["need_activity_numbers_in_combobox"],
-        settings["need_activity_ids_in_combobox"],
-        show_hidden_activities=False,
-        need_others=False,  # в комбобоксах показ "прочего" не нужен
-        need_sort=False,    # в комбобоксах сортировка по длительности не нужна
-        duration_table={},  # т.к. need_sort=False, то duration_table использоваться не будет => неважно, что передавать
+    result = {0: "(корневая активность)"} if settings["need_root_activity_in_combobox"] else {}
+    result.update(
+        _forming_activities_hierarhically(
+            activities_table,
+            settings["need_activity_numbers_in_combobox"],
+            settings["need_activity_ids_in_combobox"],
+            show_hidden_activities=False,
+            need_others=False,  # в комбобоксах показ "прочего" не нужен
+            need_sort=False,  # в комбобоксах сортировка по длительности не нужна
+            duration_table={},  # т.к. need_sort=False, то duration_table использоваться не будет => неважно, что передавать
+        )
     )
+    return result
 
 
 def forming_activities_for_tt_stat(

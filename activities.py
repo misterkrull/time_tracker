@@ -77,10 +77,12 @@ class ActivitiesTable:
         ВНИМАНИЕ! Порядок добавлений элементов в итоговый словарь имеет значение,
             и определяется он строгу по порядку элементов в get_all_ids()
         """
-        res = {id: 0 for id in self.get_all_ids()}
+        res = {0: 0}
+        res.update({id: 0 for id in self.get_all_ids()})
         for subs in session.subsessions:
             for id in self.get_lineage_ids(subs.activity_id):
                 res[id] += subs.duration
+            res[0] += subs.duration
         return res
 
     def get_activity_title(self, activity_id: int) -> str:
