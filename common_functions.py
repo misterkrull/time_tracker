@@ -49,8 +49,8 @@ def forming_activities_for_combobox(activities_table: ActivitiesTable, settings:
     """
     return _forming_activities_hierarhically(
         activities_table,
-        settings["need_activity_numbers_in_combobox_names"],
-        settings["need_activity_ids_in_combobox_names"],
+        settings["need_activity_numbers_in_combobox"],
+        settings["need_activity_ids_in_combobox"],
         show_hidden_activities=False,
         need_others=False,  # в комбобоксах показ "прочего" не нужен
         need_sort=False,    # в комбобоксах сортировка по длительности не нужна
