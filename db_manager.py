@@ -5,7 +5,6 @@ from typing import Any
 from activities import ActivitiesTable
 from common_functions import duration_to_string, parse_time, time_to_string
 from filenames import DEFAULT_DB_FILENAME
-from gui.gui_constants import DEFAULT_TIMER_FRAME_COUNT
 from session import Session, Subsession
 
 DEFAULT_ACTIVITIES = ["IT", "Английский", "Уборка", "Йога", "Помощь маме"]
@@ -62,7 +61,7 @@ def _db_data_to_session(
 class DB:
     def __init__(self, settings: dict[str, Any]):
         db_filename: str = settings.get('db_filename', DEFAULT_DB_FILENAME)
-        self._timer_frame_count: int = settings.get('timer_frame_count', DEFAULT_TIMER_FRAME_COUNT)
+        self._timer_frame_count: int = settings["timer_frame_count"]
 
         self._conn = sqlite3.connect(Path(__file__).absolute().parent / db_filename)
         self._cur = self._conn.cursor()

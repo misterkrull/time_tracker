@@ -8,9 +8,8 @@ from typing import Any
 sys.path.append(str(Path(__file__).parent.parent))
 
 from activities import ActivitiesTable
-from common_functions import duration_to_string, time_to_string
+from common_functions import duration_to_string, forming_activities_for_tt_stat, time_to_string
 from db_manager import DB
-from gui.utils import forming_combobox_names
 from settings_loader import load_settings
 
 
@@ -213,8 +212,8 @@ def stat_command(db: DB, settings: dict[str, Any], session_range: str, backward:
     print()
 
     # show_hidden_activities - нужно показывать скрытые активности, т.к. в старых сессиях они могут присутстсвовать
-    activities_hierarchically = forming_combobox_names(
-        activities_table, settings, show_hidden_activities=True, duration_table=total_duration_table if sort else None
+    activities_hierarchically: dict[int, str] = forming_activities_for_tt_stat(
+        activities_table, settings, sort, total_duration_table
     )
     for key in activities_hierarchically.keys():
         if total_duration_table[key]:  # игнорируем активности с нулевой длительностью: нет смысла их показывать
@@ -230,7 +229,10 @@ def view_command(db: DB, number_of_sessions: int) -> None:
         return
 
     # получаем айдишник последней сессии
-    last_session_id = db.get_last_session_id()
+    last_session_id: int | None = db.get_last_session_id()
+    if last_session_id is None:
+        print("В базе данных нет ни одной сессии")
+        return
 
     print(f"Список последних {number_of_sessions} сессий")
     print(
