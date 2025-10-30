@@ -20,7 +20,8 @@ DEFAULT_SETTINGS = {
     "need_activity_numbers_in_combobox_names": False,
     "need_activity_ids_in_combobox_names": True,
     "need_activity_numbers_in_tt_stat": False,
-    "need_activity_ids_in_tt_stat": True
+    "need_activity_ids_in_tt_stat": True,
+    "need_others_in_tt_stat": True,
 }
 
 

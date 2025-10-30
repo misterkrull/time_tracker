@@ -37,7 +37,7 @@ def parse_range(range_string: str) -> list[int]:
         return []
     
     numbers = set()
-    
+
     # Разбиваем на части по запятым
     parts = [part.strip() for part in range_string.split(',') if part.strip()]
 
@@ -211,14 +211,23 @@ def stat_command(db: DB, settings: dict[str, Any], session_range: str, backward:
     print(duration_to_string(total_subsessions_duration), " Общая длительность подсессий")
     print()
 
-    # show_hidden_activities - нужно показывать скрытые активности, т.к. в старых сессиях они могут присутстсвовать
+    # settings["need_others_in_tt_stat"] - передаём явно, т.к. по-хорошему бы добавить возможность 
+    #   управлять этим с помощью флага командной строки, но пока делать это не хочу
     activities_hierarchically: dict[int, str] = forming_activities_for_tt_stat(
-        activities_table, settings, sort, total_duration_table
+        activities_table, settings, settings["need_others_in_tt_stat"], sort, total_duration_table
     )
-    for key in activities_hierarchically.keys():
-        if total_duration_table[key]:  # игнорируем активности с нулевой длительностью: нет смысла их показывать
-            print(duration_to_string(total_duration_table[key]), activities_hierarchically[key], sep='  ')
-
+    for key in activities_hierarchically.keys():  # noqa: PLC0206
+        if key >= 0:  # случай "обычной" активности
+            if total_duration_table[key]:  # игнорируем активности с нулевой длительностью: нет смысла их показывать
+                print(duration_to_string(total_duration_table[key]), activities_hierarchically[key], sep='  ')
+        else:  # случай "прочего"
+            # вычисляем длительность "прочего"
+            others_duration = total_duration_table[-key]  # ключи "прочего" - это минус-ключи соответствующей актвиности
+            for child_id in activities_table.get_ordered_showing_child_ids(-key, show_hidden_activities=True):
+                others_duration -= total_duration_table[child_id]
+            # "прочее" имеет смысл показывать, только если оно ненулевое и не равно всей длительности
+            if 0 < others_duration < total_duration_table[-key]:
+                print(duration_to_string(others_duration), activities_hierarchically[key], sep='  ')
     print()
 
 

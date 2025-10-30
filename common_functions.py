@@ -52,7 +52,8 @@ def forming_activities_for_combobox(activities_table: ActivitiesTable, settings:
         settings["need_activity_numbers_in_combobox_names"],
         settings["need_activity_ids_in_combobox_names"],
         show_hidden_activities=False,
-        need_sort=False,
+        need_others=False,  # в комбобоксах показ "прочего" не нужен
+        need_sort=False,    # в комбобоксах сортировка по длительности не нужна
         duration_table={},  # т.к. need_sort=False, то duration_table использоваться не будет => неважно, что передавать
     )
 
@@ -60,6 +61,7 @@ def forming_activities_for_combobox(activities_table: ActivitiesTable, settings:
 def forming_activities_for_tt_stat(
     activities_table: ActivitiesTable,
     settings: dict[str, Any],
+    need_others: bool,
     need_sort: bool,
     duration_table: dict[int, int],
 ) -> dict[int, str]:
@@ -70,6 +72,10 @@ def forming_activities_for_tt_stat(
     Может содержать скрытые активности (т.е. у которых в БД флаг need_show=0) --
     для tt stat это нужно, поскольку даже если сейчас активность скрыта, то когда-то давно 
     она могла быть отображаемой, а значит её надо включать в статистику tt stat
+    
+    need_others - если True, то будут отображаться строчки "прочее"
+    (пригодится для случаев, если длительность активности строго меньше суммы длительностей детей)
+    У "прочего" будут отрицательные ключи, по модулю равные айдишнику соответствующей активности
 
     need_sort - если True, то упорядочивание будет сделано согласно таблице длительностей duration_table
 
@@ -81,6 +87,7 @@ def forming_activities_for_tt_stat(
         settings["need_activity_numbers_in_tt_stat"],
         settings["need_activity_ids_in_tt_stat"],
         show_hidden_activities=True,  # отображаем скрытые активности
+        need_others=need_others,
         need_sort=need_sort,
         duration_table=duration_table,
     )
@@ -91,6 +98,7 @@ def _forming_activities_hierarhically(  # noqa: PLR0913
     need_numbers: bool,
     need_id: bool,
     show_hidden_activities: bool,
+    need_others: bool,
     need_sort: bool,
     duration_table: dict[int, int]
 ) -> dict[int, str]:
@@ -105,12 +113,14 @@ def _forming_activities_hierarhically(  # noqa: PLR0913
             # кажется, будто можно убрать дублирование, но тут не всё так просто; проще выглядит с дублированием
             if need_numbers and not need_sort:
                 result[child_id] = f"{prefix}{num + 1}. {activities_table.get_activity_title(child_id)}"
-                result[child_id] += f" ({child_id})" if need_id else ""
                 add_children(child_id, f"{prefix}{num + 1}.")
             else:
                 result[child_id] = f"{prefix}{activities_table.get_activity_title(child_id)}"
-                result[child_id] += f" ({child_id})" if need_id else ""
                 add_children(child_id, f"{prefix}  ")
+            result[child_id] += f" ({child_id})" if need_id else ""
+        if need_others and id != 0:
+            result[-id] = f"{prefix}{' ' if need_numbers and not need_sort else ''}прочее"
+            result[-id] += f" ({id})" if need_id else ""
 
     add_children(0, "")
     return result
