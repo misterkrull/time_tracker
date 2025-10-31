@@ -6,7 +6,7 @@ from typing import Callable
 from common_functions import parse_time, duration_to_string, parse_duration, time_to_string
 
 
-class ManualInputOfSubsession:
+class ManualInputOfSubsessionExtended:
     def __init__(self, tk_root: tk.Tk, combobox_names: dict[int, str], combobox_height: int, add_subsession: Callable):
         self._tk_root = tk_root
         self._combobox_names = combobox_names
@@ -50,7 +50,7 @@ class ManualInputOfSubsession:
         self._dialog_window.geometry(
             f"{width}x{height}+{x}+{y}"
         )  # указываем размеры и расположение
-        self._dialog_window.title("Ручной ввод подсессии")  # указываем название окна
+        self._dialog_window.title("Расширенный ручной ввод подсессии")  # указываем название окна
 
         self._dialog_window.bind("<Return>", self._press_enter)
         self._dialog_window.bind("<Control-Return>", self._press_ctrl_enter)
@@ -164,15 +164,17 @@ class ManualInputOfSubsession:
         if event.keysym in [
             "Left", "Right", "Up", "Down", "Home", "End", "BackSpace", "Delete", "Return", "Tab", "Escape"
         ]:
-            return        
+            return
         # блокируем запрещённые символы
         if event.char not in "1234567890:- ":
             return "break"  # Отменяет ввод символа
 
     def _validate_inputing_symbols_duration(self, event: tk.Event) -> None | str:
         # пропускаем управляющие клавиши -- иначе он их блокирует
-        if event.keysym in ["Left", "Right", "Up", "Down", "Home", "End", "BackSpace", "Delete", "Return", "Tab"]:
-            return        
+        if event.keysym in [
+            "Left", "Right", "Up", "Down", "Home", "End", "BackSpace", "Delete", "Return", "Tab", "Escape"
+        ]:
+            return
         # блокируем запрещённые символы
         if event.char not in "1234567890:":
             return "break"  # Отменяет ввод символа
