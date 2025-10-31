@@ -75,9 +75,11 @@ class ManualInputOfSubsessionSimple:
             # font=("Segoe UI", 10),  # убрал, т.к. оригинальный шрифт меньше => больше символов влезает в комбобокс
             values=list(self._combobox_names.values()),
             state="readonly",
-            height=self._combobox_height
+            width=30,
+            height=self._combobox_height,
+            style="WideDropdown.TCombobox"  # этот стиль определяется в gui/timer_frame.py
         )
-        self._activity_combobox.place(x=180, y=12, width=200)
+        self._activity_combobox.place(x=180, y=12)
         self._activity_combobox.bind("<<ComboboxSelected>>", self._combobox_selected)
 
         # Сколько секунд добавить

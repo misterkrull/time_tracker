@@ -29,12 +29,11 @@ class TimerFrame:
         self._duration_table = duration_table
         self._on_start_button = on_start_button
         self._is_session_active = is_session_active
+        self._settings: dict[str, Any] = settings
 
         self._time_counter_duration: int = 0
         self._current_activity_id: int | None = None
         self._is_master = False
-
-        self._combobox_height: int = settings["combobox_height"]
 
         self._combobox_names = forming_activities_for_combobox(self._activities_table, settings)
 
@@ -56,13 +55,22 @@ class TimerFrame:
         # StringVar нужен для связи со значением комбобокса
         self._combobox_variable = tk.StringVar()
         self._combobox_variable.set(self._combobox_names[self.activity_id])
+
+        # Создаем кастомный стиль для широкого выпадающего списка:
+        wide_dropdown_style = ttk.Style()
+        # задаём увеличение ширины на указанное число пикселей:
+        wide_dropdown_style.configure(
+            "WideDropdown.TCombobox", postoffset=(0, 0, self._settings["combobox_dropdown_width_increase"], 0)
+        )
+
         self._gui_combobox = ttk.Combobox(
             timer_frame,
             textvariable=self._combobox_variable,
             values=list(self._combobox_names.values()),
             state="readonly",
             width=30,
-            height=self._combobox_height
+            height=self._settings["combobox_height"],
+            style="WideDropdown.TCombobox"
         )
         self._gui_combobox.pack(pady=5)
         self._gui_combobox.bind("<<ComboboxSelected>>", self._select_activity)

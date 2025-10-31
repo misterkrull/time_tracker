@@ -1,4 +1,7 @@
 import argparse
+import platform
+import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -136,6 +139,23 @@ def addact_command(db: DB, title: str, parent_id: int, order_number: float | Non
     db.add_activity(title, parent_id, need_show, order_number)
 
 
+def opendb_command(db_filepath: Path) -> None:
+    try:
+        if not db_filepath.exists():
+            print(f'Файл "{db_filepath}" не существует')
+            return
+        # такой вариант кода предложил DeepSeek - типа мультиплатформенность
+        if platform.system() == "Windows":
+            os.startfile(db_filepath)
+        elif platform.system() == "Darwin":  # MacOS
+            subprocess.run(["open", db_filepath])
+        else:  # Linux etc
+            subprocess.run(["xdg-open", db_filepath])
+    except Exception as e:
+        print(f"Ошибка при открытии файла: {e}")
+        return
+    
+
 def stat_command(db: DB, settings: dict[str, Any], session_range: str, backward: bool, sort: bool) -> None:
     """
     Реализация команды отображения статистики
@@ -270,6 +290,8 @@ def view_command(db: DB, number_of_sessions: int) -> None:
 def main():
     parser = argparse.ArgumentParser(description="Набор консольных инструментов по работе с базой данных тайм-трекера")
     subparsers = parser.add_subparsers(dest="command", help="Доступные команды")
+    
+    subparsers.add_parser("opendb", help="Открыть файл базы данных")
 
     addact_parser = subparsers.add_parser("addact", help="Добавить активность")
     stat_parser = subparsers.add_parser("stat", help="Показать статистику по указанным сессиям")
@@ -324,6 +346,8 @@ def main():
 
     if args.command == "addact":
         addact_command(db, args.title, args.parent_id, args.order_number, args.need_show)
+    elif args.command == "opendb":
+        opendb_command(settings["db_filepath"])
     elif args.command == "stat":
         # нужно собрать все пришедшие (благодаря nargs='+') аргументы воедино:
         if hasattr(args, 'session_range'):
