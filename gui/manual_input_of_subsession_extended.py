@@ -71,9 +71,10 @@ class ManualInputOfSubsessionExtended:
             # font=("Segoe UI", 10),  # убрал, т.к. оригинальный шрифт меньше => больше символов влезает в комбобокс
             values=list(self._combobox_names.values()),
             state="readonly",
-            height=self._combobox_height
+            height=self._combobox_height,
+            style="WideDropdown.TCombobox"  # этот стиль определяется в gui/timer_frame.py
         )
-        self._activity_combobox.place(x=180, y=12, width=200)
+        self._activity_combobox.place(x=180, y=12, width=203)
         self._activity_combobox.bind("<<ComboboxSelected>>", self._set_okbutton_state)
 
         # Начало подсессии
@@ -89,7 +90,7 @@ class ManualInputOfSubsessionExtended:
             self._dialog_window,
             font=("Segoe UI", 11)
         )
-        self._start_input.place(x=180, y=42, width=200)
+        self._start_input.place(x=180, y=42, width=203)
         self._start_input.focus_set()
         self._start_input.bind("<Key>", self._validate_inputing_symbols_startend)
         self._start_input.bind("<FocusOut>", self._check_start)

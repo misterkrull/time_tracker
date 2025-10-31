@@ -18,6 +18,7 @@ DEFAULT_SETTINGS = {
     "main_window_position_y": -768,
 
     "combobox_height": 20,
+    "combobox_dropdown_width_increase" : 0,
 
     "need_activity_numbers_in_combobox": False,
     "need_activity_ids_in_combobox": True,
