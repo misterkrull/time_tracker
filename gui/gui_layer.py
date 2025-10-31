@@ -9,7 +9,7 @@ from gui.gui_constants import (
     SESSION_BUTTON_DICT, SESSION_LABEL_DICT,
     TK_BUTTON_STATES,
 )
-from gui.manual_input_of_subsession import ManualInputOfSubsession
+from gui.manual_input_of_subsession_simple import ManualInputOfSubsessionSimple
 from gui.retroactively_termination_of_session import RetroactivelyTerminationOfSession
 from gui.timer_frame import TimerFrame
 from time_counter import TimeCounter
@@ -208,11 +208,57 @@ class GuiLayer:
         )
 
     def _manual_input_of_subsession(self):
-        ManualInputOfSubsession(
+        # в случае активной подсессии нужно передать окну ручного ввода номер активности (для значения
+        #   по умолчанию у комбобокса), а также время её начала
+        if (
+            self.app.session.current_subsession is not None
+            and self.app.session.subsessions[self.app.session.current_subsession].is_active()
+        ):
+            current_activity = self.app.session.subsessions[self.app.session.current_subsession].activity_id
+            start_current_subsession = self.app.session.subsessions[self.app.session.current_subsession].start_time
+        else:
+            current_activity = None
+            start_current_subsession = None
+
+        # для вычисления рекомендуемого максимального времени ручной сессии требуется найти время окончания предыдущей
+        if self.app.session.current_subsession is not None and self.app.session.current_subsession > 0:
+            end_previous_subsession = max(  # зачем тут max и for - см. длинный коммент ниже
+                [
+                    self.app.session.subsessions[subsession_number].end_time
+                    for subsession_number in range(0, self.app.session.current_subsession)
+                ]
+            )
+        else:
+            end_previous_subsession = None
+
+        # Здесь надо понимать, что end_previous_subsession - это подсессия, предыдущая перед текущей подсессией
+        #   по номеру подсессии в списке self.app.session.subsessions
+        # Однако оно НЕ ОЗНАЧАЕТ, что это ПОСЛЕДНЯЯ ПОДСЕССИЯ В БД !!!
+        # А всё потому, что между start_current_subsession и настоящим моментом могут быть в ручном режиме
+        #   введены ещё подсесии! И мы тогда их не учтём.
+        # Впрочем, они нам не то, чтобы не нужны, но даже и мешались бы, т.к. замысел всей этой фигни таков, что
+        #   мы позже нужного начали текущую подсессию, и нам нужно замерять интервал именно(!) между началом текущей
+        #   подсессии и концом той, которая была до неё! Подсессии, введённые в ручном режиме во время работы текущей
+        #   подсессии, во-первых нам (как было сказано) не нужны, а во-вторых - по замыслу им так неоткуда взяться,
+        #   т.к. мы, поздно спохватившись, стартовали эту текущую подсессию и СРАЗУ ЖЕ стали вбивать пропущенное время.
+        # 
+        # Тут впрочем имеется другая проблема: в промежутке между окончанием предыдущей автоматической подсессией
+        #   и началом текущей могут быть в ручном режиме введены какие-то совершенно левые подсессии, и вот тогда 
+        #   мы будем учитывать окончание последней из них, что может дать совершенно произвольные результаты!
+        # Именно по этой причине приходится вместо окончанием буквально предыдущей сессии искать максимум среди 
+        #   окончаний всех подсессий, которые были введены ДО текущей.
+        # 
+        # Хотя конечно в итоге от длительности этого безподсессионного промежутка ничего не зависит, т.к. это величина
+        #   рекомендованная. Так что и на том, что уже есть, спасибо.
+
+        ManualInputOfSubsessionSimple(
             self.root,
             forming_activities_for_combobox(self.app.activities_table, self._settings), 
             self._settings["combobox_height"],
-            self._add_subsession_manually
+            self._add_subsession_manually,
+            current_activity,
+            start_current_subsession,
+            end_previous_subsession
         )
 
     def _add_subsession_manually(self, start_time: int, end_time: int, activity_id: int) -> None:

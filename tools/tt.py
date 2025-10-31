@@ -8,7 +8,7 @@ from typing import Any
 sys.path.append(str(Path(__file__).parent.parent))
 
 from activities import ActivitiesTable
-from common_functions import duration_to_string, forming_activities_for_tt_stat, time_to_string
+from common_functions import duration_to_string, forming_activities_for_tt_stat, time_to_string, time_to_string_with_weekday
 from db_manager import DB
 from settings_loader import load_settings
 
@@ -247,7 +247,7 @@ def view_command(db: DB, number_of_sessions: int) -> None:
     print(
         # более длинный формат, пока оставлю, может потом сделаю чего с этим
         # "  ID      Начало сессии         Конец сессии       Длительность     Кол-во подсессий    Общая длит. подсессий"
-        " ID     Начало сессии        Конец сессии      Длительность  Подсессии  Длит.подс."
+        " ID      Начало сессии            Конец сессии         Длит.   Подс-и   Длит.подс."
     )
 
     for id in range(last_session_id - number_of_sessions + 1, last_session_id + 1):
@@ -260,8 +260,9 @@ def view_command(db: DB, number_of_sessions: int) -> None:
         #     f"{duration_to_string(session.duration_of_all_subsessions)}"
         # )
         print(
-            f"{id:3}  {time_to_string(session.start_time)}  {time_to_string(session.end_time)}    "
-            f"{duration_to_string(session.duration)}       {session.number_of_subsessions:3}      "
+            f"{id:3}  {time_to_string_with_weekday(session.start_time)}  "
+            f"{time_to_string_with_weekday(session.end_time)}  "
+            f"{duration_to_string(session.duration)}   {session.number_of_subsessions:3}      "
             f"{duration_to_string(session.duration_of_all_subsessions)}"
         )
 

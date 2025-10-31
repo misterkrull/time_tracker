@@ -33,6 +33,14 @@ def parse_duration(duration_str: str) -> int:
 def time_to_string(sec: int | float) -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(sec))
 
+def time_to_string_with_weekday(sec: int | float) -> str:
+    weekdays_ru = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс']
+    
+    time_struct = time.localtime(sec)
+    weekday_num = time_struct.tm_wday
+    
+    main_part = time.strftime("%Y-%m-%d ", time_struct)
+    return main_part + weekdays_ru[weekday_num] + time.strftime(" %H:%M:%S", time_struct)
 
 def parse_time(datetime_str: str) -> int:
     return int(datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S").timestamp())
